@@ -124,7 +124,7 @@ export default function Customers() {
       ) : (
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {paginated.map((c) => (
+            {paginated.map((c: any) => (
               <Card key={c.id} className="hover:border-primary/30 transition-colors group">
                 <CardContent className="p-5">
                   <div className="flex items-start justify-between mb-3">

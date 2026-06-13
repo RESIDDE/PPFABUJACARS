@@ -31,11 +31,11 @@ export interface Database {
           created_at: string;
           updated_at: string;
         };
-        Insert: Omit<
+        Insert: Partial<Omit<
           Database["public"]["Tables"]["customers"]["Row"],
-          "id" | "created_at" | "updated_at"
-        >;
+          "id" | "created_at" | "updated_at" >>;
         Update: Partial<Database["public"]["Tables"]["customers"]["Insert"]>;
+        Relationships: any[];
       };
       vehicles: {
         Row: {
@@ -48,14 +48,16 @@ export interface Database {
           plate_number: string | null;
           vin: string | null;
           notes: string | null;
+          parking_location: string | null;
+          items_found: string[] | null;
           created_at: string;
           updated_at: string;
         };
-        Insert: Omit<
+        Insert: Partial<Omit<
           Database["public"]["Tables"]["vehicles"]["Row"],
-          "id" | "created_at" | "updated_at"
-        >;
+          "id" | "created_at" | "updated_at" >>;
         Update: Partial<Database["public"]["Tables"]["vehicles"]["Insert"]>;
+        Relationships: any[];
       };
       ppf_products: {
         Row: {
@@ -72,11 +74,11 @@ export interface Database {
           created_at: string;
           updated_at: string;
         };
-        Insert: Omit<
+        Insert: Partial<Omit<
           Database["public"]["Tables"]["ppf_products"]["Row"],
-          "id" | "created_at" | "updated_at"
-        >;
+          "id" | "created_at" | "updated_at" >>;
         Update: Partial<Database["public"]["Tables"]["ppf_products"]["Insert"]>;
+        Relationships: any[];
       };
       service_orders: {
         Row: {
@@ -98,11 +100,11 @@ export interface Database {
           created_at: string;
           updated_at: string;
         };
-        Insert: Omit<
+        Insert: Partial<Omit<
           Database["public"]["Tables"]["service_orders"]["Row"],
-          "id" | "created_at" | "updated_at"
-        >;
+          "id" | "created_at" | "updated_at" >>;
         Update: Partial<Database["public"]["Tables"]["service_orders"]["Insert"]>;
+        Relationships: any[];
       };
       service_order_items: {
         Row: {
@@ -116,17 +118,18 @@ export interface Database {
           notes: string | null;
           created_at: string;
         };
-        Insert: Omit<
+        Insert: Partial<Omit<
           Database["public"]["Tables"]["service_order_items"]["Row"],
-          "id" | "created_at"
-        >;
+          "id" | "created_at" >>;
         Update: Partial<Database["public"]["Tables"]["service_order_items"]["Insert"]>;
+        Relationships: any[];
       };
       invoices: {
         Row: {
           id: string;
           invoice_number: string;
-          service_order_id: string;
+          invoice_type: string | null;
+          service_order_id: string | null;
           customer_id: string;
           issued_date: string;
           due_date: string | null;
@@ -135,14 +138,15 @@ export interface Database {
           payment_method: string | null;
           payment_date: string | null;
           notes: string | null;
+          total_amount: number | null;
           created_at: string;
           updated_at: string;
         };
-        Insert: Omit<
+        Insert: Partial<Omit<
           Database["public"]["Tables"]["invoices"]["Row"],
-          "id" | "created_at" | "updated_at"
-        >;
+          "id" | "created_at" | "updated_at" >>;
         Update: Partial<Database["public"]["Tables"]["invoices"]["Insert"]>;
+        Relationships: any[];
       };
       stock_movements: {
         Row: {
@@ -155,15 +159,17 @@ export interface Database {
           created_by: string | null;
           created_at: string;
         };
-        Insert: Omit<
+        Insert: Partial<Omit<
           Database["public"]["Tables"]["stock_movements"]["Row"],
-          "id" | "created_at"
-        >;
+          "id" | "created_at" >>;
         Update: Partial<Database["public"]["Tables"]["stock_movements"]["Insert"]>;
+        Relationships: any[];
       };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;
     Enums: Record<string, never>;
+    CompositeTypes: Record<string, never>;
   };
 }
+

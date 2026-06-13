@@ -82,7 +82,7 @@ export default function Inventory() {
   const stockMutation = useMutation({
     mutationFn: async () => {
       if (!stockProductId) return;
-      const product = products.find(p => p.id === stockProductId);
+      const product = products.find((p: any) => p.id === stockProductId);
       if (!product) return;
       let newQty = product.stock_quantity;
       if (stockType === "in") newQty += stockQty;
@@ -138,7 +138,7 @@ export default function Inventory() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {products.map((p) => {
+          {products.map((p: any) => {
             const isLow = p.stock_quantity <= p.reorder_level;
             return (
               <Card key={p.id} className={`hover:border-primary/30 transition-colors group ${isLow ? "border-amber-500/30" : ""}`}>
@@ -199,7 +199,7 @@ export default function Inventory() {
                 <Label>Brand *</Label>
                 <Select value={brandValue} onValueChange={(v) => { setBrandValue(v); setValue("brand", v); }}>
                   <SelectTrigger><SelectValue placeholder="Select brand..." /></SelectTrigger>
-                  <SelectContent>{PPF_BRANDS.map((b) => <SelectItem key={b} value={b}>{b}</SelectItem>)}</SelectContent>
+                  <SelectContent>{PPF_BRANDS.map((b: any) => <SelectItem key={b} value={b}>{b}</SelectItem>)}</SelectContent>
                 </Select>
                 {errors.brand && <p className="text-xs text-destructive">{errors.brand.message}</p>}
               </div>
@@ -218,7 +218,7 @@ export default function Inventory() {
                 <Label>Unit *</Label>
                 <Select value={unitValue} onValueChange={(v) => { setUnitValue(v); setValue("unit", v); }}>
                   <SelectTrigger><SelectValue placeholder="Select unit..." /></SelectTrigger>
-                  <SelectContent>{UNITS.map((u) => <SelectItem key={u} value={u}>{u}</SelectItem>)}</SelectContent>
+                  <SelectContent>{UNITS.map((u: any) => <SelectItem key={u} value={u}>{u}</SelectItem>)}</SelectContent>
                 </Select>
                 {errors.unit && <p className="text-xs text-destructive">{errors.unit.message}</p>}
               </div>
@@ -289,3 +289,4 @@ export default function Inventory() {
     </div>
   );
 }
+

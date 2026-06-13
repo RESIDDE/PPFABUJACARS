@@ -73,7 +73,9 @@ export default function ServiceOrderDetail() {
     mutationFn: async (status: ServiceOrderStatus) => {
       const patch: Record<string, unknown> = { status };
       if (status === "completed" || status === "delivered") patch.actual_completion = new Date().toISOString().split("T")[0];
-      const { error } = await supabase.from("service_orders").update(patch).eq("id", id!);
+      const { error } = await supabase.from("service_orders")
+        .update(patch)
+        .eq("id", id!);
       if (error) throw error;
     },
     onSuccess: () => { toast.success("Status updated"); qc.invalidateQueries({ queryKey: ["service-order", id] }); },
@@ -95,7 +97,7 @@ export default function ServiceOrderDetail() {
       if (error) throw error;
       // Recalc order total
       const items = [...(order?.service_order_items ?? []), { line_total }];
-      const subtotal = items.reduce((s, i) => s + ((i as { line_total: number }).line_total ?? 0), 0);
+      const subtotal = items.reduce((s: any, i: any) => s + ((i as { line_total: number }).line_total ?? 0), 0);
       const total_amount = subtotal + (order?.service_charge || 0) - (order?.discount || 0) + (order?.tax || 0);
       await supabase.from("service_orders").update({ subtotal, total_amount }).eq("id", id!);
     },
@@ -114,7 +116,7 @@ export default function ServiceOrderDetail() {
       const { error } = await supabase.from("service_order_items").delete().eq("id", itemId);
       if (error) throw error;
       const items = (order?.service_order_items ?? []).filter((i: any) => i.id !== itemId);
-      const subtotal = items.reduce((s, i) => s + ((i as { line_total: number }).line_total ?? 0), 0);
+      const subtotal = items.reduce((s: any, i: any) => s + ((i as { line_total: number }).line_total ?? 0), 0);
       const total_amount = subtotal + (order?.service_charge || 0) - (order?.discount || 0) + (order?.tax || 0);
       await supabase.from("service_orders").update({ subtotal, total_amount }).eq("id", id!);
     },
@@ -308,7 +310,7 @@ export default function ServiceOrderDetail() {
                   <table className="w-full text-sm">
                     <thead><tr className="border-y border-border"><th className="text-left text-xs text-muted-foreground px-5 py-2.5 font-semibold uppercase tracking-wider">Product</th><th className="text-left text-xs text-muted-foreground px-5 py-2.5 font-semibold uppercase tracking-wider">Area</th><th className="text-right text-xs text-muted-foreground px-5 py-2.5 font-semibold uppercase tracking-wider">Qty</th><th className="text-right text-xs text-muted-foreground px-5 py-2.5 font-semibold uppercase tracking-wider">Price</th><th className="text-right text-xs text-muted-foreground px-5 py-2.5 font-semibold uppercase tracking-wider">Total</th><th className="px-3 py-2.5" /></tr></thead>
                     <tbody className="divide-y divide-border">
-                      {items.map((item) => (
+                      {items.map((item: any) => (
                         <tr key={item.id}>
                           <td className="px-5 py-3"><p className="font-medium">{item.ppf_products?.name}</p><p className="text-xs text-muted-foreground">{item.ppf_products?.brand}</p></td>
                           <td className="px-5 py-3 text-muted-foreground">{item.area_description}</td>
@@ -382,7 +384,7 @@ export default function ServiceOrderDetail() {
           <Card>
             <CardHeader className="pb-3"><CardTitle className="text-sm">Update Status</CardTitle></CardHeader>
             <CardContent className="space-y-2">
-              {STATUS_OPTIONS.map((s) => (
+              {STATUS_OPTIONS.map((s: any) => (
                 <button key={s} onClick={() => statusMutation.mutate(s)}
                   className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-all ${order.status === s ? "bg-primary/15 text-primary font-medium" : "hover:bg-muted text-muted-foreground"}`}>
                   {getStatusLabel(s)}
@@ -427,7 +429,7 @@ export default function ServiceOrderDetail() {
                 if (p) { setSelectedProduct(p); setValue("unit_price", p.selling_price); }
               }}>
                 <SelectTrigger><SelectValue placeholder="Select PPF film..." /></SelectTrigger>
-                <SelectContent>{products.map((p) => <SelectItem key={p.id} value={p.id}>{p.brand} — {p.name}</SelectItem>)}</SelectContent>
+                <SelectContent>{products.map((p: any) => <SelectItem key={p.id} value={p.id}>{p.brand} — {p.name}</SelectItem>)}</SelectContent>
               </Select>
               {errors.ppf_product_id && <p className="text-xs text-destructive">{errors.ppf_product_id.message}</p>}
             </div>
@@ -578,3 +580,5 @@ export default function ServiceOrderDetail() {
     </div>
   );
 }
+
+

@@ -264,14 +264,14 @@ export default function Vehicles() {
             <SelectTrigger className="w-[140px]"><SelectValue placeholder="All Makes" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Makes</SelectItem>
-              {CAR_MAKES.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+              {CAR_MAKES.map((m: any) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
             </SelectContent>
           </Select>
           <Select value={filterLocation} onValueChange={(v) => { setFilterLocation(v); setPage(1); }}>
             <SelectTrigger className="w-[140px]"><SelectValue placeholder="All Locations" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Locations</SelectItem>
-              {PARKING_LOCATIONS.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+              {PARKING_LOCATIONS.map((m: any) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
             </SelectContent>
           </Select>
         </div>
@@ -290,7 +290,7 @@ export default function Vehicles() {
       ) : (
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {paginated.map((v) => {
+            {paginated.map((v: any) => {
               const customer = v.customers as { full_name: string; phone: string } | null;
               return (
                 <Card key={v.id} className="hover:border-primary/30 transition-colors group">
@@ -358,7 +358,7 @@ export default function Vehicles() {
                   >
                     <SelectTrigger><SelectValue placeholder="Search or select..." /></SelectTrigger>
                     <SelectContent>
-                      {customers.map((c) => <SelectItem key={c.id} value={c.id}>{c.full_name} ({c.phone || "No phone"})</SelectItem>)}
+                      {customers.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.full_name} ({c.phone || "No phone"})</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
@@ -419,7 +419,7 @@ export default function Vehicles() {
                   <Label>Make *</Label>
                   <Select onValueChange={(v) => setValue("make", v)} defaultValue={editingId ? undefined : undefined}>
                     <SelectTrigger><SelectValue placeholder="Select make..." /></SelectTrigger>
-                    <SelectContent>{CAR_MAKES.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}</SelectContent>
+                    <SelectContent>{CAR_MAKES.map((m: any) => <SelectItem key={m} value={m}>{m}</SelectItem>)}</SelectContent>
                   </Select>
                   {errors.make && <p className="text-xs text-destructive">{errors.make.message}</p>}
                 </div>
@@ -472,7 +472,7 @@ export default function Vehicles() {
                   <Label>Parking Lot</Label>
                   <Select onValueChange={(v) => setValue("parking_location", v)} defaultValue={editingId ? undefined : undefined}>
                     <SelectTrigger><SelectValue placeholder="Select location..." /></SelectTrigger>
-                    <SelectContent>{PARKING_LOCATIONS.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}</SelectContent>
+                    <SelectContent>{PARKING_LOCATIONS.map((m: any) => <SelectItem key={m} value={m}>{m}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
               </div>
@@ -480,7 +480,7 @@ export default function Vehicles() {
               <div className="space-y-3 pt-2">
                 <Label>Items Found in the Car</Label>
                 <div className="grid grid-cols-2 gap-3">
-                  {CAR_ITEMS.map((item) => (
+                  {CAR_ITEMS.map((item: any) => (
                     <div key={item} className="flex items-center space-x-2">
                       <input 
                          type="checkbox"
@@ -519,3 +519,4 @@ export default function Vehicles() {
     </div>
   );
 }
+

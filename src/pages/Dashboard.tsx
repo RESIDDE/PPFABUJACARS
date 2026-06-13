@@ -73,7 +73,7 @@ export default function Dashboard() {
 
       const activeJobs = orders.data?.filter(o => ["pending", "in_progress"].includes(o.status)).length ?? 0;
       const monthRevenue = orders.data?.filter(o => o.status === "completed" || o.status === "delivered")
-        .reduce((sum, o) => sum + (o.total_amount ?? 0), 0) ?? 0;
+        .reduce((sum: any, o: any) => sum + (o.total_amount ?? 0), 0) ?? 0;
       const lowStock = products.data?.filter(p => p.stock_quantity <= p.reorder_level).length ?? 0;
 
       return {
@@ -208,7 +208,7 @@ export default function Dashboard() {
               </PieChart>
             </ResponsiveContainer>
             <div className="mt-2 space-y-1.5">
-              {statusData.map((item) => (
+              {statusData.map((item: any) => (
                 <div key={item.name} className="flex items-center justify-between text-xs">
                   <div className="flex items-center gap-2">
                     <div className="h-2 w-2 rounded-full" style={{ background: item.color }} />
@@ -281,7 +281,7 @@ export default function Dashboard() {
           <CardContent className="p-0">
             {inventoryData && inventoryData.length > 0 ? (
               <div className="divide-y divide-border">
-                {inventoryData.map((product) => (
+                {inventoryData.map((product: any) => (
                   <div key={product.name} className="px-6 py-3">
                     <div className="flex items-center justify-between mb-1">
                       <p className="text-xs font-medium truncate">{product.name}</p>

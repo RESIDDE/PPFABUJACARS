@@ -58,12 +58,12 @@ export default function Reports() {
     return true;
   };
 
-  const ordersData = ordersDataRaw.filter(o => filterByDate(o.created_at));
-  const customersData = customersDataRaw.filter(c => filterByDate(c.created_at));
+  const ordersData = ordersDataRaw.filter((o: any) => filterByDate(o.created_at));
+  const customersData = customersDataRaw.filter((c: any) => filterByDate(c.created_at));
 
   // Revenue by month
   const revenueByMonth: Record<string, number> = {};
-  ordersData.forEach((o) => {
+  ordersData.forEach((o: any) => {
     if (o.status === "completed" || o.status === "delivered") {
       const month = new Date(o.created_at).toLocaleString("default", { month: "short", year: "2-digit" });
       revenueByMonth[month] = (revenueByMonth[month] ?? 0) + (o.total_amount ?? 0);
@@ -73,25 +73,25 @@ export default function Reports() {
 
   // Status breakdown
   const statusCounts: Record<string, number> = {};
-  ordersData.forEach((o) => { statusCounts[o.status] = (statusCounts[o.status] ?? 0) + 1; });
+  ordersData.forEach((o: any) => { statusCounts[o.status] = (statusCounts[o.status] ?? 0) + 1; });
   const statusData = Object.entries(statusCounts).map(([name, value], i) => ({ name, value, color: COLORS[i % COLORS.length] }));
 
   // Stock value by brand
   const brandStock: Record<string, number> = {};
-  inventoryData.forEach((p) => {
+  inventoryData.forEach((p: any) => {
     brandStock[p.brand] = (brandStock[p.brand] ?? 0) + p.stock_quantity * p.unit_cost;
   });
   const brandData = Object.entries(brandStock).map(([brand, value]) => ({ brand, value }));
 
   // Customers per month
   const customersPerMonth: Record<string, number> = {};
-  customersData.forEach((c) => {
+  customersData.forEach((c: any) => {
     const month = new Date(c.created_at).toLocaleString("default", { month: "short", year: "2-digit" });
     customersPerMonth[month] = (customersPerMonth[month] ?? 0) + 1;
   });
   const customerChartData = Object.entries(customersPerMonth).map(([month, count]) => ({ month, count }));
 
-  const totalRevenue = ordersData.filter(o => o.status === "completed" || o.status === "delivered").reduce((s, o) => s + (o.total_amount ?? 0), 0);
+  const totalRevenue = ordersData.filter((o: any) => o.status === "completed" || o.status === "delivered").reduce((s: any, o: any) => s + (o.total_amount ?? 0), 0);
   const totalOrders = ordersData.length;
   const avgOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
 
@@ -187,7 +187,7 @@ export default function Reports() {
               <h1 className="text-3xl font-black text-slate-900 tracking-tight uppercase">Performance Report</h1>
               <p className="text-sm text-slate-500 font-mono mt-2">Generated: {new Date().toLocaleDateString()}</p>
               <p className="text-sm text-slate-500 font-mono mt-1">
-                Period: {filterDate === 'all' ? 'All Time' : filterDate.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                Period: {filterDate === 'all' ? 'All Time' : filterDate.replace('_', ' ').replace(/\b\w/g, (l: any) => l.toUpperCase())}
               </p>
             </div>
           </div>
@@ -199,7 +199,7 @@ export default function Reports() {
               { label: "Total Orders", value: totalOrders, color: "text-blue-500" },
               { label: "Avg Order Value", value: formatCurrency(avgOrderValue), color: "text-violet-500" },
               { label: "New Customers", value: customersData.length, color: "text-amber-500" },
-            ].map((s) => (
+            ].map((s: any) => (
               <Card key={s.label} className={cn(exportMode ? "border-slate-200 shadow-none bg-slate-50" : "print:border-slate-200 print:shadow-none bg-card print:bg-slate-50")}>
                 <CardContent className="p-5">
                   <p className={cn("text-xs uppercase tracking-wider", exportMode ? "text-slate-500" : "text-muted-foreground print:text-slate-500")}>{s.label}</p>
@@ -261,7 +261,7 @@ export default function Reports() {
                   </PieChart>
                 </ResponsiveContainer>
                 <div className="space-y-2">
-                  {statusData.map((s) => (
+                  {statusData.map((s: any) => (
                     <div key={s.name} className={cn("flex items-center gap-2 text-sm", exportMode ? "text-slate-600" : "print:text-slate-600")}>
                       <div className="h-2.5 w-2.5 rounded-full" style={{ background: s.color }} />
                       <span className="capitalize">{s.name.replace("_", " ")}</span>
@@ -299,3 +299,4 @@ export default function Reports() {
     </div>
   );
 }
+

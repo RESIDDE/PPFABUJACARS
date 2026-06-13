@@ -101,7 +101,7 @@ export default function Invoices() {
           <Input placeholder="Search invoice #..." className="pl-9 w-56" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} />
         </div>
         <div className="flex gap-2 flex-wrap">
-          {["all", ...STATUS_OPTIONS].map((s) => (
+          {["all", ...STATUS_OPTIONS].map((s: any) => (
             <button key={s} onClick={() => { setStatusFilter(s); setPage(1); }}
               className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${statusFilter === s ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:text-foreground"}`}>
               {s === "all" ? "All" : getStatusLabel(s)}
@@ -124,13 +124,13 @@ export default function Invoices() {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-border">
-                  {["Invoice #", "Type", "Customer", "Order #", "Issued", "Due", "Status", "Amount", ""].map((h) => (
+                  {["Invoice #", "Type", "Customer", "Order #", "Issued", "Due", "Status", "Amount", ""].map((h: any) => (
                     <th key={h} className="text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider px-5 py-3">{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {invoices.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map((inv) => {
+                {invoices.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map((inv: any) => {
                   const customer = inv.customers as { full_name: string } | null;
                   const serviceOrder = inv.service_orders as { order_number: string; total_amount: number } | null;
                   const amount = inv.total_amount ?? serviceOrder?.total_amount ?? 0;
@@ -196,7 +196,7 @@ export default function Invoices() {
               <Label>Payment Method</Label>
               <Select onValueChange={(v) => setValue("payment_method", v)}>
                 <SelectTrigger><SelectValue placeholder="Select method..." /></SelectTrigger>
-                <SelectContent>{PAYMENT_METHODS.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}</SelectContent>
+                <SelectContent>{PAYMENT_METHODS.map((m: any) => <SelectItem key={m} value={m}>{m}</SelectItem>)}</SelectContent>
               </Select>
               {errors.payment_method && <p className="text-xs text-destructive">{errors.payment_method.message}</p>}
             </div>

@@ -176,7 +176,7 @@ export default function ServiceOrders() {
         </Select>
 
         <div className="flex gap-2 flex-wrap items-center">
-          {["all", ...STATUS_OPTIONS].map((s) => (
+          {["all", ...STATUS_OPTIONS].map((s: any) => (
             <button key={s} onClick={() => { setStatusFilter(s); setPage(1); }}
               className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${statusFilter === s ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:text-foreground"}`}>
               {s === "all" ? "All" : getStatusLabel(s)}
@@ -197,7 +197,7 @@ export default function ServiceOrders() {
                 <>
           {/* Mobile view (Cards) */}
           <div className="grid grid-cols-1 gap-4 md:hidden">
-            {orders.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map((o) => {
+            {orders.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map((o: any) => {
               const customer = o.customers as { full_name: string } | null;
               const vehicle = o.vehicles as { make: string; model: string; plate_number: string | null } | null;
               return (
@@ -247,7 +247,7 @@ export default function ServiceOrders() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {orders.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map((o) => {
+                  {orders.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map((o: any) => {
                     const customer = o.customers as { full_name: string } | null;
                     const vehicle = o.vehicles as { make: string; model: string; plate_number: string | null } | null;
                     return (
@@ -314,7 +314,7 @@ export default function ServiceOrders() {
                 <Label>Status</Label>
                 <Select defaultValue="pending" onValueChange={(v) => setValue("status", v as ServiceOrderStatus)}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>{STATUS_OPTIONS.map((s) => <SelectItem key={s} value={s}>{getStatusLabel(s)}</SelectItem>)}</SelectContent>
+                  <SelectContent>{STATUS_OPTIONS.map((s: any) => <SelectItem key={s} value={s}>{getStatusLabel(s)}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
             </div>
