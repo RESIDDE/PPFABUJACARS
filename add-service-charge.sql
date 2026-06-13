@@ -1,0 +1,1 @@
+ALTER TABLE service_orders ADD COLUMN service_charge NUMERIC NOT NULL DEFAULT 0;
