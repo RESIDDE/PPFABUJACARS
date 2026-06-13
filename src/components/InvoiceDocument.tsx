@@ -31,6 +31,25 @@ function amountInWords(amount: number): string {
   if (kobo > 0) result += " and " + numToWords(kobo) + " Kobo";
   return result + " Only";
 }
+
+// Extracts all loaded CSS rules (including Vite-injected Tailwind) from the current document
+function extractAllCss(): string {
+  const parts: string[] = [];
+  try {
+    Array.from(document.styleSheets).forEach((sheet) => {
+      try {
+        Array.from(sheet.cssRules || []).forEach((rule) => {
+          parts.push(rule.cssText);
+        });
+      } catch {
+        // Cross-origin sheet — skip
+      }
+    });
+  } catch {
+    // ignore
+  }
+  return parts.join("\n");
+}
 // ─────────────────────────────────────────────────────────────────────────────
 
 export default function InvoiceDocument({ invoiceId, onClose, hideHeader }: { invoiceId: string; onClose?: () => void; hideHeader?: boolean }) {
@@ -50,14 +69,82 @@ export default function InvoiceDocument({ invoiceId, onClose, hideHeader }: { in
     },
   });
 
-  // ── Print: same-window visibility trick so all Vite styles are available ──
+  // ── Print: popup window with extracted CSS so it renders completely isolated ──
   const handlePrint = () => {
-    document.body.classList.add('is-printing-invoice');
-    window.print();
-    // Remove class after a short delay to cover the print dialog closing
-    setTimeout(() => {
-      document.body.classList.remove('is-printing-invoice');
-    }, 1500);
+    if (!invoiceRef.current) return;
+
+    const printWindow = window.open("", "_blank", "width=900,height=1200");
+    if (!printWindow) {
+      alert("Please allow pop-ups for this site to print invoices.");
+      return;
+    }
+
+    const allCss = extractAllCss();
+
+    printWindow.document.write(`<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>Invoice</title>
+  <style>
+    /* ── CSS variable fallbacks (light mode) ── */
+    :root {
+      --background: 0 0% 100%;
+      --foreground: 240 10% 3.9%;
+      --card: 0 0% 100%;
+      --card-foreground: 240 10% 3.9%;
+      --muted: 240 4.8% 95.9%;
+      --muted-foreground: 240 3.8% 46.1%;
+      --border: 240 5.9% 90%;
+      --primary: 270 76% 53%;
+      --primary-foreground: 0 0% 100%;
+      --radius: 1rem;
+    }
+
+    /* ── All Tailwind + app CSS ── */
+    ${allCss}
+
+    /* ── Print overrides ── */
+    *, *::before, *::after { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 0;
+      background: white;
+      font-family: "Inter", system-ui, -apple-system, sans-serif;
+      font-size: 11px;
+      color: #0a0a0f;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    .invoice-print-page {
+      padding: 24px 32px;
+      background: white;
+      width: 100%; min-width: 800px; box-sizing: border-box;
+      overflow: visible;
+    }
+    .no-print { display: none !important; }
+    @media print {
+      .invoice-print-page {
+        padding: 20px 28px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="invoice-print-page">
+    ${invoiceRef.current.innerHTML}
+  </div>
+  <script>
+    window.onload = function () {
+      setTimeout(function () {
+        window.print();
+        window.close();
+      }, 700);
+    };
+  </script>
+</body>
+</html>`);
+    printWindow.document.close();
   };
 
   // ── Download PNG ──────────────────────────────────────────────────────────
