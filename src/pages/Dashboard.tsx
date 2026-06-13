@@ -186,11 +186,27 @@ export default function Dashboard() {
   }));
 
   const statusData = [
-    { name: "Pending", value: 3, color: "#f59e0b" },
+    { name: "Pending",    value: 3,  color: "#f59e0b" },
     { name: "In Progress", value: 5, color: "#3b82f6" },
-    { name: "Completed", value: 8, color: "#22c55e" },
-    { name: "Delivered", value: 12, color: "#8b5cf6" },
+    { name: "Completed",  value: 8,  color: "#22c55e" },
+    { name: "Delivered",  value: 12, color: "#8b5cf6" },
   ];
+
+  // ── Pie: intro assemble then spin ────────────────────────────────────────
+  const [pieVisible, setPieVisible]   = useState(0);
+  const [pieSpinning, setPieSpinning] = useState(false);
+  const [pieHovered,  setPieHovered]  = useState(false);
+
+  useEffect(() => {
+    if (pieVisible < statusData.length) {
+      const t = setTimeout(() => setPieVisible(v => v + 1), 420);
+      return () => clearTimeout(t);
+    } else {
+      // all slices in — wait a beat then start spinning
+      const t = setTimeout(() => setPieSpinning(true), 500);
+      return () => clearTimeout(t);
+    }
+  }, [pieVisible]);
 
   return (
     <div className="space-y-6">
@@ -276,24 +292,35 @@ export default function Dashboard() {
         </Card>
 
         {/* Job Status Pie */}
-        <Card>
+        <Card
+          onMouseEnter={() => setPieHovered(true)}
+          onMouseLeave={() => setPieHovered(false)}
+        >
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-semibold">Job Status</CardTitle>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={150}>
               <PieChart>
-                <Pie 
-                  data={statusData} 
-                  cx="50%" 
-                  cy="50%" 
-                  innerRadius={45} 
-                  outerRadius={65} 
-                  paddingAngle={12} 
+                <Pie
+                  data={statusData.slice(0, pieVisible)}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={45}
+                  outerRadius={65}
+                  paddingAngle={12}
                   dataKey="value"
-                  className="animate-[spin_6s_linear_infinite] hover:[animation-play-state:paused] origin-center cursor-pointer"
+                  isAnimationActive={true}
+                  animationBegin={0}
+                  animationDuration={380}
+                  className={[
+                    "origin-center cursor-pointer",
+                    pieSpinning && !pieHovered
+                      ? "animate-[spin_6s_linear_infinite]"
+                      : "",
+                  ].join(" ")}
                 >
-                  {statusData.map((entry, i) => (
+                  {statusData.slice(0, pieVisible).map((entry, i) => (
                     <Cell key={i} fill={entry.color} className="transition-all duration-300 hover:opacity-80" />
                   ))}
                 </Pie>
