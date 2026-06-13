@@ -64,9 +64,7 @@ export function AppLayout({ children }: AppLayoutProps) {
 
         {/* Page content — this is the ONLY scrollable area on mobile */}
         <main className="flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-6 min-h-0">
-          <div className="page-enter">
-            {children}
-          </div>
+          {children}
         </main>
       </div>
     </div>

@@ -30,6 +30,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^3.6.0",
+    "framer-motion": "^12.40.0",
     "html-to-image": "^1.11.13",
     "html2canvas": "*",
     "jspdf": "^4.2.1",

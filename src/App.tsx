@@ -1,11 +1,12 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { Suspense, lazy } from "react";
 import { Loader2 } from "lucide-react";
 import { Toaster } from "sonner";
 import { AppLayout } from "@/components/AppLayout";
 import { useAuth } from "@/hooks/useAuth";
 import { ThemeProvider } from "@/components/theme-provider";
+import { PageTransition } from "@/components/PageTransition";
 
 // Lazy-load pages
 const Auth = lazy(() => import("@/pages/Auth"));
@@ -61,6 +62,7 @@ function GuestGuard({ children }: { children: React.ReactNode }) {
 }
 
 function AppRoutes() {
+  const location = useLocation();
   return (
     <Routes>
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
@@ -83,20 +85,22 @@ function AppRoutes() {
         element={
           <AuthGuard>
             <AppLayout>
-              <Suspense fallback={<PageLoader />}>
-                <Routes>
-                  <Route path="/dashboard" element={<Dashboard />} />
-                  <Route path="/customers" element={<Customers />} />
-                  <Route path="/vehicles" element={<Vehicles />} />
-                  <Route path="/service-orders" element={<ServiceOrders />} />
-                  <Route path="/service-orders/:id" element={<ServiceOrderDetail />} />
-                  <Route path="/inventory" element={<Inventory />} />
-                  <Route path="/invoices" element={<Invoices />} />
-                  <Route path="/reports" element={<Reports />} />
-                  <Route path="/settings" element={<Settings />} />
-                  <Route path="*" element={<NotFound />} />
-                </Routes>
-              </Suspense>
+              <PageTransition>
+                <Suspense fallback={<PageLoader />}>
+                  <Routes location={location} key={location.pathname}>
+                    <Route path="/dashboard" element={<Dashboard />} />
+                    <Route path="/customers" element={<Customers />} />
+                    <Route path="/vehicles" element={<Vehicles />} />
+                    <Route path="/service-orders" element={<ServiceOrders />} />
+                    <Route path="/service-orders/:id" element={<ServiceOrderDetail />} />
+                    <Route path="/inventory" element={<Inventory />} />
+                    <Route path="/invoices" element={<Invoices />} />
+                    <Route path="/reports" element={<Reports />} />
+                    <Route path="/settings" element={<Settings />} />
+                    <Route path="*" element={<NotFound />} />
+                  </Routes>
+                </Suspense>
+              </PageTransition>
             </AppLayout>
           </AuthGuard>
         }
