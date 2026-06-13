@@ -185,7 +185,7 @@ export default function Dashboard() {
                   contentStyle={{ background: "hsl(222 47% 7%)", border: "1px solid hsl(217 33% 14%)", borderRadius: "8px", fontSize: "12px" }}
                   formatter={(v: number) => [formatCurrency(v), "Revenue"]}
                 />
-                <Area type="monotone" dataKey="revenue" stroke="#3b82f6" strokeWidth={2} fill="url(#revenueGrad)" />
+                <Area className="animate-sea-wave" type="monotone" dataKey="revenue" stroke="#3b82f6" strokeWidth={2} fill="url(#revenueGrad)" />
               </AreaChart>
             </ResponsiveContainer>
           </CardContent>
@@ -290,7 +290,7 @@ export default function Dashboard() {
           <CardContent className="p-0">
             {inventoryData && inventoryData.length > 0 ? (
               <div className="divide-y divide-border">
-                {inventoryData.map((product: any) => (
+                {inventoryData.map((product: any, idx: number) => (
                   <div key={product.name} className="px-6 py-3">
                     <div className="flex items-center justify-between mb-1">
                       <p className="text-xs font-medium truncate">{product.name}</p>
@@ -299,8 +299,11 @@ export default function Dashboard() {
                     <div className="flex items-center gap-2">
                       <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
                         <div
-                          className="h-full bg-primary rounded-full transition-all"
-                          style={{ width: `${Math.min((product.stock_quantity / 20) * 100, 100)}%` }}
+                          className="h-full bg-primary rounded-full transition-all animate-soundbar"
+                          style={{ 
+                            width: `${Math.min((product.stock_quantity / 20) * 100, 100)}%`,
+                            animationDelay: `${idx * 0.15}s`
+                          }}
                         />
                       </div>
                       <span className="text-xs font-bold text-foreground">{product.stock_quantity}</span>

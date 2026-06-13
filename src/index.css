@@ -192,6 +192,25 @@
   .glass-card:nth-child(5) { animation-delay: 1.2s; }
   .glass-card:nth-child(6) { animation-delay: 1.5s; }
   .glass-card:nth-child(7) { animation-delay: 1.8s; }
+
+  /* Sea wave animation for Area Chart */
+  @keyframes sea-wave {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-6px); }
+  }
+  .animate-sea-wave {
+    animation: sea-wave 5s ease-in-out infinite;
+  }
+
+  /* Sound bar animation for Inventory bars */
+  @keyframes soundbar {
+    0% { transform: scaleX(0.85); opacity: 0.8; }
+    100% { transform: scaleX(1); opacity: 1; }
+  }
+  .animate-soundbar {
+    animation: soundbar 0.4s ease-in-out infinite alternate;
+    transform-origin: left;
+  }
 }
 
 /* --- PRINT STYLES ----------------------------------------- */
