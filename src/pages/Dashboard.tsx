@@ -199,9 +199,18 @@ export default function Dashboard() {
           <CardContent>
             <ResponsiveContainer width="100%" height={150}>
               <PieChart>
-                <Pie data={statusData} cx="50%" cy="50%" innerRadius={45} outerRadius={65} paddingAngle={3} dataKey="value">
+                <Pie 
+                  data={statusData} 
+                  cx="50%" 
+                  cy="50%" 
+                  innerRadius={45} 
+                  outerRadius={65} 
+                  paddingAngle={12} 
+                  dataKey="value"
+                  className="animate-[spin_6s_linear_infinite] hover:[animation-play-state:paused] origin-center cursor-pointer"
+                >
                   {statusData.map((entry, i) => (
-                    <Cell key={i} fill={entry.color} />
+                    <Cell key={i} fill={entry.color} className="transition-all duration-300 hover:opacity-80" />
                   ))}
                 </Pie>
                 <Tooltip contentStyle={{ background: "hsl(222 47% 7%)", border: "1px solid hsl(217 33% 14%)", borderRadius: "8px", fontSize: "12px" }} />
