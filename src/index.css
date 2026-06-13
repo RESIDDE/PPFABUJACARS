@@ -215,7 +215,6 @@
     animation: soundbar 0.4s ease-in-out infinite alternate;
     transform-origin: left;
   }
-}
 
 /* --- PRINT STYLES ----------------------------------------- */
 @media print {
