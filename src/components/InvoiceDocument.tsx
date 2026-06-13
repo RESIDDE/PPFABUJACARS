@@ -152,7 +152,22 @@ export default function InvoiceDocument({ invoiceId, onClose, hideHeader }: { in
     if (!invoiceRef.current) return;
     try {
       setDownloading(true);
+      
+      // Temporarily remove dark mode for the screenshot
+      const isDark = document.documentElement.classList.contains("dark");
+      if (isDark) {
+        document.documentElement.classList.remove("dark");
+        // Wait a tiny bit for the browser to repaint light mode colors
+        await new Promise(resolve => setTimeout(resolve, 50));
+      }
+
       const canvas = await html2canvas(invoiceRef.current, { scale: 2, useCORS: true, windowWidth: 1024 });
+      
+      // Restore dark mode
+      if (isDark) {
+        document.documentElement.classList.add("dark");
+      }
+
       const link = document.createElement("a");
       link.download = `Invoice-${invoice?.invoice_number}.png`;
       link.href = canvas.toDataURL("image/png");

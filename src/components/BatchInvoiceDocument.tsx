@@ -128,6 +128,15 @@ ${pagesHtml}
     if (!containerRef.current) return;
     try {
       setDownloading(true);
+      
+      // Temporarily remove dark mode for the screenshot
+      const isDark = document.documentElement.classList.contains("dark");
+      if (isDark) {
+        document.documentElement.classList.remove("dark");
+        // Wait a tiny bit for the browser to repaint light mode colors
+        await new Promise(resolve => setTimeout(resolve, 50));
+      }
+
       const pdf = new jsPDF("p", "mm", "a4");
       const invoiceEls = containerRef.current.querySelectorAll(".invoice-page");
 
@@ -139,6 +148,11 @@ ${pagesHtml}
         const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
         if (i > 0) pdf.addPage();
         pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
+      }
+      
+      // Restore dark mode
+      if (isDark) {
+        document.documentElement.classList.add("dark");
       }
 
       pdf.save("Customer-Invoices-Batch.pdf");
