@@ -66,6 +66,7 @@ function StatCard({
   sub,
   color = "text-primary",
   iconBg = "bg-primary/10",
+  animateTypewriter = false,
 }: {
   icon: React.ElementType;
   label: string;
