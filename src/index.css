@@ -216,6 +216,45 @@
     transform-origin: left;
   }
 
+/* ── Doctor Strange suit-assembly animation (Job Status legend) ── */
+@keyframes suit-fly-in {
+  0%   { opacity: 0; transform: translate(var(--fx, 30px), var(--fy, -20px)) scale(0.4) rotate(var(--fr, -25deg)); filter: blur(4px); }
+  60%  { opacity: 1; transform: translate(calc(var(--fx, 30px) * -0.1), calc(var(--fy, -20px) * -0.1)) scale(1.05) rotate(calc(var(--fr, -25deg) * -0.1)); filter: blur(0px); }
+  80%  { transform: translate(0, 0) scale(0.97) rotate(0deg); }
+  100% { opacity: 1; transform: translate(0, 0) scale(1) rotate(0deg); filter: blur(0px); }
+}
+
+@keyframes dot-pop {
+  0%   { opacity: 0; transform: scale(0) rotate(180deg); }
+  70%  { transform: scale(1.4) rotate(-15deg); }
+  100% { opacity: 1; transform: scale(1) rotate(0deg); }
+}
+
+@keyframes value-snap {
+  0%   { opacity: 0; transform: translateX(18px) scale(0.6); }
+  65%  { transform: translateX(-3px) scale(1.1); }
+  100% { opacity: 1; transform: translateX(0) scale(1); }
+}
+
+.suit-tile {
+  opacity: 0;
+  animation: suit-fly-in 0.55s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+.suit-tile:nth-child(1) { --fx: -28px; --fy: -18px; --fr: -20deg; }
+.suit-tile:nth-child(2) { --fx:  28px; --fy: -14px; --fr:  18deg; }
+.suit-tile:nth-child(3) { --fx: -20px; --fy:  16px; --fr: -15deg; }
+.suit-tile:nth-child(4) { --fx:  20px; --fy:  20px; --fr:  22deg; }
+
+.suit-dot {
+  opacity: 0;
+  animation: dot-pop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+.suit-value {
+  opacity: 0;
+  animation: value-snap 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
 /* --- PRINT STYLES ----------------------------------------- */
 @media print {
   /* Force light theme colours */

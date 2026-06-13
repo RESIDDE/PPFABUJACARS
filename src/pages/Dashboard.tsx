@@ -301,13 +301,20 @@ export default function Dashboard() {
               </PieChart>
             </ResponsiveContainer>
             <div className="mt-2 space-y-1.5">
-              {statusData.map((item: any) => (
-                <div key={item.name} className="flex items-center justify-between text-xs">
+              {statusData.map((item: any, i: number) => (
+                <div
+                  key={item.name}
+                  className="flex items-center justify-between text-xs suit-tile"
+                  style={{ animationDelay: `${i * 0.18}s` }}
+                >
                   <div className="flex items-center gap-2">
-                    <div className="h-2 w-2 rounded-full" style={{ background: item.color }} />
+                    <div
+                      className="h-2 w-2 rounded-full suit-dot"
+                      style={{ background: item.color, animationDelay: `${i * 0.18 + 0.08}s` }}
+                    />
                     <span className="text-muted-foreground">{item.name}</span>
                   </div>
-                  <span className="font-medium">{item.value}</span>
+                  <span className="font-medium suit-value" style={{ animationDelay: `${i * 0.18 + 0.14}s` }}>{item.value}</span>
                 </div>
               ))}
             </div>
