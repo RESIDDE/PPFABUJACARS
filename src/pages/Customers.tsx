@@ -94,20 +94,22 @@ export default function Customers() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Customers</h1>
-          <p className="text-sm text-muted-foreground mt-1">{customers.length} registered customer{customers.length !== 1 ? "s" : ""}</p>
+      <div className="sticky top-0 z-20 -mx-4 px-4 pt-4 sm:-mx-6 sm:px-6 sm:pt-6 pb-4 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b border-border/50 -mt-4 sm:-mt-6 flex flex-col gap-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold">Customers</h1>
+            <p className="text-sm text-muted-foreground mt-1">{customers.length} registered customer{customers.length !== 1 ? "s" : ""}</p>
+          </div>
+          <Button onClick={openAdd}>
+            <Plus className="h-4 w-4" /> <span className="hidden sm:inline ml-2">Add Customer</span>
+          </Button>
         </div>
-        <Button onClick={openAdd}>
-          <Plus className="h-4 w-4" /> Add Customer
-        </Button>
-      </div>
 
-      {/* Search */}
-      <div className="relative max-w-sm">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input placeholder="Search customers..." className="pl-9" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} />
+        {/* Search */}
+        <div className="relative max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input placeholder="Search customers..." className="pl-9 bg-background/50" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} />
+        </div>
       </div>
 
       {/* Grid */}
