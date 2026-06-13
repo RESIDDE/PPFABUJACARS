@@ -148,8 +148,8 @@ export default function Dashboard() {
     },
   });
 
-  // Mock revenue chart data
-  const revenueData = [
+  // ── Sea-wave revenue chart animation ──────────────────────────────────────
+  const BASE_REVENUE = [
     { month: "Jan", revenue: 420000 },
     { month: "Feb", revenue: 380000 },
     { month: "Mar", revenue: 520000 },
@@ -157,6 +157,33 @@ export default function Dashboard() {
     { month: "May", revenue: 490000 },
     { month: "Jun", revenue: 720000 },
   ];
+
+  const [wavePhase, setWavePhase] = useState(0);
+  const [chartHovered, setChartHovered] = useState(false);
+  const phaseRef = useState(() => ({ value: 0, paused: false, raf: 0 }))[0];
+
+  useEffect(() => {
+    phaseRef.paused = chartHovered;
+  }, [chartHovered]);
+
+  useEffect(() => {
+    const WAVE_SPEED = 0.025; // radians per frame
+    const tick = () => {
+      if (!phaseRef.paused) {
+        phaseRef.value += WAVE_SPEED;
+        setWavePhase(phaseRef.value);
+      }
+      phaseRef.raf = requestAnimationFrame(tick);
+    };
+    phaseRef.raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(phaseRef.raf);
+  }, []);
+
+  const WAVE_AMP = 30000; // how many naira the wave ripples up/down
+  const revenueData = BASE_REVENUE.map((d, i) => ({
+    ...d,
+    revenue: Math.round(d.revenue + Math.sin(wavePhase + i * 1.1) * WAVE_AMP),
+  }));
 
   const statusData = [
     { name: "Pending", value: 3, color: "#f59e0b" },
@@ -216,9 +243,15 @@ export default function Dashboard() {
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Revenue Chart */}
-        <Card className="lg:col-span-2">
+        <Card
+          className="lg:col-span-2"
+          onMouseEnter={() => setChartHovered(true)}
+          onMouseLeave={() => setChartHovered(false)}
+        >
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold">Revenue Trend</CardTitle>
+            <CardTitle className="text-sm font-semibold">
+              Revenue Trend {chartHovered && <span className="text-xs font-normal text-muted-foreground ml-2">(paused)</span>}
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={220}>
@@ -236,7 +269,7 @@ export default function Dashboard() {
                   contentStyle={{ background: "hsl(222 47% 7%)", border: "1px solid hsl(217 33% 14%)", borderRadius: "8px", fontSize: "12px" }}
                   formatter={(v: number) => [formatCurrency(v), "Revenue"]}
                 />
-                <Area type="monotone" dataKey="revenue" stroke="#3b82f6" strokeWidth={2} fill="url(#revenueGrad)" />
+                <Area type="monotone" dataKey="revenue" stroke="#3b82f6" strokeWidth={2} fill="url(#revenueGrad)" isAnimationActive={false} />
               </AreaChart>
             </ResponsiveContainer>
           </CardContent>
