@@ -71,7 +71,7 @@ export default function ServiceOrderDetail() {
 
   const statusMutation = useMutation({
     mutationFn: async (status: ServiceOrderStatus) => {
-      const patch: Record<string, unknown> = { status };
+      const patch: any = { status };
       if (status === "completed" || status === "delivered") patch.actual_completion = new Date().toISOString().split("T")[0];
       const { error } = await supabase.from("service_orders")
         .update(patch)
@@ -425,7 +425,7 @@ export default function ServiceOrderDetail() {
               <Label>PPF Product *</Label>
               <Select onValueChange={(v) => {
                 setValue("ppf_product_id", v);
-                const p = products.find(p => p.id === v);
+                const p = products.find((p: any) => p.id === v);
                 if (p) { setSelectedProduct(p); setValue("unit_price", p.selling_price); }
               }}>
                 <SelectTrigger><SelectValue placeholder="Select PPF film..." /></SelectTrigger>
@@ -580,5 +580,6 @@ export default function ServiceOrderDetail() {
     </div>
   );
 }
+
 
 

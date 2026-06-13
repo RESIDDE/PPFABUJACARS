@@ -126,7 +126,7 @@ export default function Vehicles() {
   });
 
   const phoneValue = watch("customer_phone");
-  const matchedCustomer = customers.find(c => c.phone && phoneValue && c.phone.replace(/\D/g, '') === phoneValue.replace(/\D/g, '') && phoneValue.length >= 8);
+  const matchedCustomer = customers.find((c: any) => c.phone && phoneValue && c.phone.replace(/\D/g, '') === phoneValue.replace(/\D/g, '') && phoneValue.length >= 8);
 
   const mutation = useMutation({
     mutationFn: async ({ data, isNew }: { data: FormData; isNew: boolean }) => {
@@ -139,7 +139,7 @@ export default function Vehicles() {
         // Create new customer
         const { data: newCust, error: cErr } = await supabase.from("customers").insert({
           full_name: data.customer_name,
-          phone: data.customer_phone || null,
+          phone: data.customer_phone || "",
           email: data.customer_email || null,
           address: data.customer_address || null,
           notes: data.customer_notes || null,
@@ -519,4 +519,5 @@ export default function Vehicles() {
     </div>
   );
 }
+
 
