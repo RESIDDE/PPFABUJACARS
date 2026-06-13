@@ -65,7 +65,7 @@ export default function InvoiceDocument({ invoiceId, onClose, hideHeader }: { in
     if (!invoiceRef.current) return;
     try {
       setDownloading(true);
-      const canvas = await html2canvas(invoiceRef.current, { scale: 2, useCORS: true });
+      const canvas = await html2canvas(invoiceRef.current, { scale: 2, useCORS: true, windowWidth: 1024 });
       const link = document.createElement("a");
       link.download = `Invoice-${invoice?.invoice_number}.png`;
       link.href = canvas.toDataURL("image/png");
@@ -116,7 +116,7 @@ export default function InvoiceDocument({ invoiceId, onClose, hideHeader }: { in
         {/* ─── The actual invoice document ─── */}
         <div
           ref={invoiceRef}
-          className="print-invoice relative overflow-hidden max-w-[780px] mx-auto bg-card text-card-foreground p-7 md:p-9 shadow-sm border border-border rounded-xl"
+          className="print-invoice relative overflow-hidden w-full max-w-[780px] print:w-[780px] print:min-w-[780px] mx-auto bg-card text-card-foreground p-7 md:p-9 shadow-sm border border-border rounded-xl"
         >
           {/* Watermark */}
           <div
@@ -309,3 +309,4 @@ export default function InvoiceDocument({ invoiceId, onClose, hideHeader }: { in
     </div>
   );
 }
+

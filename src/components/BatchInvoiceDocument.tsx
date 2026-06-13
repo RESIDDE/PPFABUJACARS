@@ -94,8 +94,7 @@ export default function BatchInvoiceDocument({ invoiceIds, onClose }: { invoiceI
     .invoice-print-page {
       padding: 24px 32px;
       background: white;
-      width: 100%;
-      box-sizing: border-box;
+      width: 100%; min-width: 800px; box-sizing: border-box;
       overflow: visible;
     }
     /* Hide the InvoiceDocument toolbar (hideHeader=true hides it anyway, belt-and-braces) */
@@ -134,7 +133,7 @@ ${pagesHtml}
 
       for (let i = 0; i < invoiceEls.length; i++) {
         const el = invoiceEls[i] as HTMLElement;
-        const canvas = await html2canvas(el, { scale: 2, useCORS: true });
+        const canvas = await html2canvas(el, { scale: 2, useCORS: true, windowWidth: 1024 });
         const imgData = canvas.toDataURL("image/png");
         const pdfWidth = pdf.internal.pageSize.getWidth();
         const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
@@ -190,3 +189,5 @@ ${pagesHtml}
     </div>
   );
 }
+
+
