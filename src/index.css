@@ -214,25 +214,32 @@
 
   /*
    * When body has .is-printing-invoice:
-   * Hide everything, then reveal only .print-invoice (and its children).
-   * Works for both single invoice and batch (multiple .invoice-page divs).
+   * We need natural pagination. Instead of position fixed/absolute,
+   * we use visibility hidden for everything, but ensure body and root
+   * can grow to fit the content.
    */
   body.is-printing-invoice > * { visibility: hidden; }
 
-  /* The .print-invoice wrapper: make visible and fill the page */
+  /* Ensure all ancestors allow overflow and height */
+  body.is-printing-invoice,
+  body.is-printing-invoice #root,
+  body.is-printing-invoice .flex,
+  body.is-printing-invoice .grid,
+  body.is-printing-invoice main,
+  body.is-printing-invoice div {
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  /* The .print-invoice wrapper: make visible and place at top-left */
   body.is-printing-invoice .print-invoice {
     visibility: visible;
-    position: fixed;
-    inset: 0;
-    width: 100%;
-    max-width: none;
+    position: absolute;
+    left: 0;
+    top: 0;
     margin: 0;
-    padding: 0;
-    background: white;
-    border: none !important;
-    box-shadow: none !important;
-    border-radius: 0 !important;
-    overflow: visible;
+    /* Do not override background, border, border-radius, or shadow here so it matches preview */
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
