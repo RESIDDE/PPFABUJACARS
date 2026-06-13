@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   TrendingUp, Users, Car, ClipboardList, Package,
@@ -13,6 +14,51 @@ import {
 } from "recharts";
 import { PpfAnimationCard } from "@/components/PpfAnimationCard";
 
+function TypewriterValue({ text }: { text: string }) {
+  const [displayedText, setDisplayedText] = useState("");
+  const [isHovered, setIsHovered] = useState(false);
+  const [index, setIndex] = useState(0);
+
+  useEffect(() => {
+    setDisplayedText("");
+    setIndex(0);
+  }, [text]);
+
+  useEffect(() => {
+    if (isHovered || index >= text.length) return;
+    
+    const timeout = setTimeout(() => {
+      setDisplayedText(prev => prev + text[index]);
+      setIndex(index + 1);
+    }, 100);
+
+    return () => clearTimeout(timeout);
+  }, [index, isHovered, text]);
+
+  useEffect(() => {
+    if (index >= text.length) {
+      const timeout = setTimeout(() => {
+        if (!isHovered) {
+          setDisplayedText("");
+          setIndex(0);
+        }
+      }, 3000);
+      return () => clearTimeout(timeout);
+    }
+  }, [index, text.length, isHovered]);
+
+  return (
+    <span 
+      onMouseEnter={() => setIsHovered(true)} 
+      onMouseLeave={() => setIsHovered(false)}
+      className="inline-block relative min-h-[32px] cursor-text"
+    >
+      {displayedText}
+      <span className="animate-pulse border-r-2 border-primary ml-0.5 inline-block h-5 align-middle">&nbsp;</span>
+    </span>
+  );
+}
+
 function StatCard({
   icon: Icon,
   label,
@@ -27,6 +73,7 @@ function StatCard({
   sub?: string;
   color?: string;
   iconBg?: string;
+  animateTypewriter?: boolean;
 }) {
   return (
     <Card className="stat-card">
@@ -34,7 +81,9 @@ function StatCard({
         <div className="flex items-start justify-between">
           <div>
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">{label}</p>
-            <p className="text-2xl font-bold text-foreground">{value}</p>
+            <div className="text-2xl font-bold text-foreground">
+              {animateTypewriter ? <TypewriterValue text={String(value)} /> : value}
+            </div>
             {sub && <p className="text-xs text-muted-foreground mt-1">{sub}</p>}
           </div>
           <div className={`h-10 w-10 rounded-lg ${iconBg} flex items-center justify-center`}>
@@ -143,6 +192,7 @@ export default function Dashboard() {
           sub="All completed jobs"
           color="text-emerald-400"
           iconBg="bg-emerald-500/10"
+          animateTypewriter={true}
         />
         <StatCard
           icon={Users}
