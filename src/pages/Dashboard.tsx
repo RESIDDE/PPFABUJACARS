@@ -185,7 +185,7 @@ export default function Dashboard() {
                   contentStyle={{ background: "hsl(222 47% 7%)", border: "1px solid hsl(217 33% 14%)", borderRadius: "8px", fontSize: "12px" }}
                   formatter={(v: number) => [formatCurrency(v), "Revenue"]}
                 />
-                <Area className="animate-sea-wave" type="monotone" dataKey="revenue" stroke="#3b82f6" strokeWidth={2} fill="url(#revenueGrad)" />
+                <Area type="monotone" dataKey="revenue" stroke="#3b82f6" strokeWidth={2} fill="url(#revenueGrad)" />
               </AreaChart>
             </ResponsiveContainer>
           </CardContent>
