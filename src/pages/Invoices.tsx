@@ -34,6 +34,7 @@ const PAYMENT_METHODS = ["Cash", "Bank Transfer", "POS", "Cheque", "USSD"];
 export default function Invoices() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [dateFilter, setDateFilter] = useState("all");
   const [page, setPage] = useState(1);
   const [payDialogOpen, setPayDialogOpen] = useState(false);
   const [payInvoiceId, setPayInvoiceId] = useState<string | null>(null);
@@ -41,13 +42,20 @@ export default function Invoices() {
   const qc = useQueryClient();
 
   const { data: invoices = [], isLoading } = useQuery({
-    queryKey: ["invoices", search, statusFilter],
+    queryKey: ["invoices", search, statusFilter, dateFilter],
     queryFn: async (): Promise<any> => {
       let q = supabase.from("invoices")
         .select("*, customers(full_name, phone), service_orders(order_number, total_amount)")
         .order("created_at", { ascending: false });
       if (statusFilter !== "all") q = q.eq("status", statusFilter as InvoiceStatus);
       if (search) q = q.ilike("invoice_number", `%${search}%`);
+      if (dateFilter === "week") {
+        const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+        q = q.gte("created_at", weekAgo);
+      } else if (dateFilter === "month") {
+        const monthAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+        q = q.gte("created_at", monthAgo);
+      }
       const { data } = await q;
       return data ?? [];
     },
@@ -100,13 +108,25 @@ export default function Invoices() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input placeholder="Search invoice #..." className="pl-9 w-56" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} />
         </div>
-        <div className="flex gap-2 flex-wrap">
-          {["all", ...STATUS_OPTIONS].map((s: any) => (
-            <button key={s} onClick={() => { setStatusFilter(s); setPage(1); }}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${statusFilter === s ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:text-foreground"}`}>
-              {s === "all" ? "All" : getStatusLabel(s)}
-            </button>
-          ))}
+        <div className="flex gap-2 flex-wrap items-center">
+          <Select value={dateFilter} onValueChange={(v) => { setDateFilter(v); setPage(1); }}>
+            <SelectTrigger className="w-[140px] h-[34px] text-xs">
+              <SelectValue placeholder="Date" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Time</SelectItem>
+              <SelectItem value="week">Past Week</SelectItem>
+              <SelectItem value="month">Past 30 Days</SelectItem>
+            </SelectContent>
+          </Select>
+          <div className="flex gap-2 flex-wrap">
+            {["all", ...STATUS_OPTIONS].map((s: any) => (
+              <button key={s} onClick={() => { setStatusFilter(s); setPage(1); }}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${statusFilter === s ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:text-foreground"}`}>
+                {s === "all" ? "All" : getStatusLabel(s)}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
