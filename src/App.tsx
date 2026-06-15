@@ -19,6 +19,7 @@ const Inventory = lazy(() => import("@/pages/Inventory"));
 const Invoices = lazy(() => import("@/pages/Invoices"));
 const Reports = lazy(() => import("@/pages/Reports"));
 const Settings = lazy(() => import("@/pages/Settings"));
+const Expenses = lazy(() => import("@/pages/Expenses"));
 const NotFound = lazy(() => import("@/pages/NotFound"));
 
 const queryClient = new QueryClient({
@@ -96,6 +97,7 @@ function AppRoutes() {
                     <Route path="/inventory" element={<Inventory />} />
                     <Route path="/invoices" element={<Invoices />} />
                     <Route path="/reports" element={<Reports />} />
+                    <Route path="/expenses" element={<Expenses />} />
                     <Route path="/settings" element={<Settings />} />
                     <Route path="*" element={<NotFound />} />
                   </Routes>

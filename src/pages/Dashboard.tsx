@@ -12,7 +12,6 @@ import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, PieChart, Pie, Cell
 } from "recharts";
-import { PpfAnimationCard } from "@/components/PpfAnimationCard";
 
 function TypewriterValue({ text }: { text: string }) {
   const [displayedText, setDisplayedText] = useState("");
@@ -217,7 +216,21 @@ export default function Dashboard() {
       </div>
 
       {/* AI Animation Banner */}
-      <PpfAnimationCard />
+      <Card className="bg-black border-none overflow-hidden relative isolate h-[120px] sm:h-[160px] flex items-center justify-center shadow-xl mb-6">
+        <div className="absolute inset-0 bg-gradient-to-br from-zinc-900 to-black pointer-events-none" />
+        
+        {/* Subtle grid pattern background for tech feel */}
+        <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)', backgroundSize: '24px 24px' }}></div>
+        
+        <div className="relative z-10 flex items-center justify-center w-full px-6 overflow-hidden py-4">
+          <img 
+            src="/abujar car display.jpeg" 
+            alt="ABUJA CAR" 
+            className="w-full max-w-[340px] sm:max-w-[480px] md:max-w-[640px] object-contain mix-blend-screen animate-image-typewriter"
+            draggable="false"
+          />
+        </div>
+      </Card>
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

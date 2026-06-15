@@ -165,6 +165,31 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["stock_movements"]["Insert"]>;
         Relationships: any[];
       };
+      expenses: {
+        Row: {
+          id: string;
+          vehicle_id: string;
+          expense_date: string;
+          technician_name: string;
+          job_description: string;
+          amount: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: Partial<Omit<
+          Database["public"]["Tables"]["expenses"]["Row"],
+          "id" | "created_at" | "updated_at" >>;
+        Update: Partial<Database["public"]["Tables"]["expenses"]["Insert"]>;
+        Relationships: [
+          {
+            foreignKeyName: "expenses_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          }
+        ];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;

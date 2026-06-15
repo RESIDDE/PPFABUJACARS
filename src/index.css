@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Michroma&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -140,6 +141,15 @@
   @keyframes fadeUp {
     from { opacity: 0; transform: translateY(6px); }
     to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ─── Typewriter Image Reveal ─────────────────── */
+  @keyframes image-typewriter {
+    0% { clip-path: inset(0 100% 0 0); }
+    100% { clip-path: inset(0 0 0 0); }
+  }
+  .animate-image-typewriter {
+    animation: image-typewriter 1.5s steps(8, end) forwards;
   }
 
   /* ─── Shimmer skeleton ────────────────────────── */
