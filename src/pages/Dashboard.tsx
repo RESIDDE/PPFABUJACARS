@@ -136,14 +136,15 @@ export default function Dashboard() {
   });
 
   const { data: inventoryData } = useQuery({
-    queryKey: ["dashboard-inventory"],
+    queryKey: ["dashboard-inventory-low"],
     queryFn: async (): Promise<any> => {
       const { data } = await supabase
         .from("ppf_products")
-        .select("name, brand, stock_quantity")
-        .order("stock_quantity", { ascending: false })
-        .limit(5);
-      return data ?? [];
+        .select("name, brand, stock_quantity, reorder_level, unit")
+        .order("stock_quantity", { ascending: true });
+        
+      if (!data) return [];
+      return data.filter(p => p.stock_quantity <= p.reorder_level).slice(0, 10);
     },
   });
 
@@ -410,42 +411,39 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        {/* Inventory alerts */}
+        {/* Low Stock Alerts */}
         <Card>
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-sm font-semibold">Inventory Alerts</CardTitle>
-              <AlertTriangle className="h-4 w-4 text-amber-400" />
+              <CardTitle className="text-sm font-semibold">Low Stock Alerts</CardTitle>
+              <AlertTriangle className="h-4 w-4 text-amber-500" />
             </div>
           </CardHeader>
           <CardContent className="p-0">
             {inventoryData && inventoryData.length > 0 ? (
               <div className="divide-y divide-border">
                 {inventoryData.map((product: any, idx: number) => (
-                  <div key={product.name} className="px-6 py-3">
+                  <div key={product.name + product.brand} className="px-6 py-3 hover:bg-amber-500/5 transition-colors">
                     <div className="flex items-center justify-between mb-1">
-                      <p className="text-xs font-medium truncate">{product.name}</p>
-                      <span className="text-xs text-muted-foreground">{product.brand}</span>
+                      <p className="text-sm font-semibold truncate text-foreground">{product.name}</p>
+                      <span className="text-xs font-bold text-primary uppercase tracking-wider">{product.brand}</span>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-primary rounded-full transition-all animate-soundbar"
-                          style={{ 
-                            width: `${Math.min((product.stock_quantity / 20) * 100, 100)}%`,
-                            animationDelay: `${idx * 0.15}s`
-                          }}
-                        />
+                    <div className="flex items-center justify-between mt-2">
+                      <div className="text-[11px] text-muted-foreground uppercase tracking-wider">
+                        Threshold: {product.reorder_level} {product.unit}
                       </div>
-                      <span className="text-xs font-bold text-foreground">{product.stock_quantity}</span>
+                      <span className="text-sm font-bold text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded">
+                        {product.stock_quantity} {product.unit} left
+                      </span>
                     </div>
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="px-6 py-8 text-center text-muted-foreground text-sm">
-                <CheckCircle2 className="h-8 w-8 mx-auto mb-2 opacity-30" />
-                All stock levels OK
+              <div className="px-6 py-12 text-center text-muted-foreground text-sm">
+                <CheckCircle2 className="h-10 w-10 mx-auto mb-3 text-emerald-500/50" />
+                <p className="font-medium text-emerald-500">All stock levels OK</p>
+                <p className="text-xs mt-1">No products are currently running low.</p>
               </div>
             )}
           </CardContent>

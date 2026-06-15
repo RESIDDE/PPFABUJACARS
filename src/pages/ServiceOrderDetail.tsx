@@ -95,6 +95,15 @@ export default function ServiceOrderDetail() {
         notes: data.notes || null,
       });
       if (error) throw error;
+
+      // Auto-deduct from inventory
+      const { data: pData } = await supabase.from("ppf_products").select("stock_quantity").eq("id", data.ppf_product_id).single();
+      if (pData) {
+        await supabase.from("ppf_products").update({ 
+          stock_quantity: Math.max(0, pData.stock_quantity - data.quantity_used) 
+        }).eq("id", data.ppf_product_id);
+      }
+
       // Recalc order total
       const items = [...(order?.service_order_items ?? []), { line_total }];
       const subtotal = items.reduce((s: any, i: any) => s + ((i as { line_total: number }).line_total ?? 0), 0);
@@ -102,8 +111,9 @@ export default function ServiceOrderDetail() {
       await supabase.from("service_orders").update({ subtotal, total_amount }).eq("id", id!);
     },
     onSuccess: () => {
-      toast.success("Item added");
+      toast.success("Item added & inventory updated");
       qc.invalidateQueries({ queryKey: ["service-order", id] });
+      qc.invalidateQueries({ queryKey: ["ppf-products-list"] });
       setAddItemOpen(false);
       reset();
       setSelectedProduct(null);
@@ -113,6 +123,17 @@ export default function ServiceOrderDetail() {
 
   const removeItemMutation = useMutation({
     mutationFn: async (itemId: string) => {
+      // Find the item to restore inventory before deleting
+      const itemToRemove = (order?.service_order_items ?? []).find((i: any) => i.id === itemId);
+      if (itemToRemove && itemToRemove.ppf_product_id) {
+        const { data: pData } = await supabase.from("ppf_products").select("stock_quantity").eq("id", itemToRemove.ppf_product_id).single();
+        if (pData) {
+          await supabase.from("ppf_products").update({ 
+            stock_quantity: pData.stock_quantity + itemToRemove.quantity_used 
+          }).eq("id", itemToRemove.ppf_product_id);
+        }
+      }
+
       const { error } = await supabase.from("service_order_items").delete().eq("id", itemId);
       if (error) throw error;
       const items = (order?.service_order_items ?? []).filter((i: any) => i.id !== itemId);
@@ -120,7 +141,11 @@ export default function ServiceOrderDetail() {
       const total_amount = subtotal + (order?.service_charge || 0) - (order?.discount || 0) + (order?.tax || 0);
       await supabase.from("service_orders").update({ subtotal, total_amount }).eq("id", id!);
     },
-    onSuccess: () => { toast.success("Item removed"); qc.invalidateQueries({ queryKey: ["service-order", id] }); },
+    onSuccess: () => { 
+      toast.success("Item removed & inventory restored"); 
+      qc.invalidateQueries({ queryKey: ["service-order", id] }); 
+      qc.invalidateQueries({ queryKey: ["ppf-products-list"] });
+    },
     onError: (e) => toast.error(e.message),
   });
 

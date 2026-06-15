@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Search, Package, AlertTriangle, Pencil, TrendingDown, TrendingUp } from "lucide-react";
+import { Plus, Search, Package, AlertTriangle, Pencil, TrendingDown, TrendingUp, Printer } from "lucide-react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -42,7 +42,49 @@ export default function Inventory() {
   const [stockProductId, setStockProductId] = useState<string | null>(null);
   const [stockQty, setStockQty] = useState(0);
   const [stockType, setStockType] = useState<"in" | "out" | "adjustment">("in");
+  const [isCustomBrand, setIsCustomBrand] = useState(false);
+  const [historyDialogOpen, setHistoryDialogOpen] = useState(false);
+  const [selectedHistoryProduct, setSelectedHistoryProduct] = useState<any>(null);
+  const [historyDateFilter, setHistoryDateFilter] = useState("");
   const qc = useQueryClient();
+
+  const { data: productHistory = [], isLoading: historyLoading } = useQuery({
+    queryKey: ["product-history", selectedHistoryProduct?.id, historyDateFilter],
+    queryFn: async (): Promise<any[]> => {
+      if (!selectedHistoryProduct) return [];
+      let q = supabase
+        .from("service_order_items")
+        .select(`
+          id,
+          quantity_used,
+          created_at,
+          service_orders!inner (
+            id,
+            order_number,
+            intake_date,
+            customers (
+              full_name
+            ),
+            vehicles (
+              make,
+              model,
+              plate_number,
+              vin
+            )
+          )
+        `)
+        .eq("ppf_product_id", selectedHistoryProduct.id)
+        .order("created_at", { ascending: false });
+
+      if (historyDateFilter) {
+        q = q.eq("service_orders.intake_date", historyDateFilter);
+      }
+
+      const { data } = await q;
+      return data || [];
+    },
+    enabled: !!selectedHistoryProduct,
+  });
 
   const { data: products = [], isLoading } = useQuery({
     queryKey: ["ppf-products", search],
@@ -104,13 +146,158 @@ export default function Inventory() {
 
   const openEdit = (p: typeof products[0]) => {
     reset({ name: p.name, brand: p.brand, sku: p.sku ?? "", unit: p.unit, unit_cost: p.unit_cost, selling_price: p.selling_price, stock_quantity: p.stock_quantity, reorder_level: p.reorder_level, description: p.description ?? "" });
-    setBrandValue(p.brand);
+    
+    const isCustom = !PPF_BRANDS.includes(p.brand);
+    setIsCustomBrand(isCustom);
+    setBrandValue(isCustom ? "Other" : p.brand);
+    
     setUnitValue(p.unit);
     setEditingId(p.id);
     setDialogOpen(true);
   };
 
-  const openAdd = () => { reset(); setBrandValue(""); setUnitValue(""); setEditingId(null); setDialogOpen(true); };
+  const openAdd = () => { reset(); setBrandValue(""); setUnitValue(""); setIsCustomBrand(false); setEditingId(null); setDialogOpen(true); };
+
+  const openHistory = (p: any) => {
+    setSelectedHistoryProduct(p);
+    setHistoryDateFilter("");
+    setHistoryDialogOpen(true);
+  };
+
+  const handlePrint = () => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+    
+    // Get the base URL so the image loads correctly in the new window
+    const baseUrl = window.location.origin;
+    
+    const html = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Usage History - ${selectedHistoryProduct?.brand} ${selectedHistoryProduct?.name}</title>
+          <style>
+            @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap');
+            body { font-family: 'Inter', system-ui, sans-serif; color: #0f172a; margin: 0; background: white; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            .container { position: relative; max-width: 800px; margin: 0 auto; padding: 40px; min-height: 100vh; overflow: hidden; }
+            
+            /* Watermark */
+            .watermark { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background-image: url('${baseUrl}/logo.jpeg'); background-position: center; background-size: 60%; background-repeat: no-repeat; opacity: 0.03; z-index: 0; pointer-events: none; }
+            
+            .content { position: relative; z-index: 10; }
+            
+            /* Header */
+            .header { display: flex; justify-content: space-between; align-items: flex-start; padding-bottom: 20px; border-bottom: 2px solid rgba(59, 130, 246, 0.15); margin-bottom: 24px; }
+            .header-left { display: flex; align-items: center; gap: 16px; }
+            .logo { width: 64px; height: 64px; border-radius: 8px; border: 1px solid #e2e8f0; overflow: hidden; flex-shrink: 0; background: white; }
+            .logo img { width: 100%; height: 100%; object-fit: cover; }
+            .company-info h3 { font-weight: 900; font-size: 16px; text-transform: uppercase; margin: 0 0 2px 0; color: #0f172a; }
+            .company-info p { font-size: 11px; color: #64748b; margin: 0 0 2px 0; line-height: 1.3; }
+            .header-right { text-align: right; }
+            .header-right h1 { font-size: 28px; font-weight: 900; color: #3b82f6; text-transform: uppercase; margin: 0; letter-spacing: -0.5px; line-height: 1; }
+            .header-right p { font-size: 13px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 2px; margin: 6px 0 0 0; }
+            
+            /* Meta Info */
+            .meta-info { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #e2e8f0; margin-bottom: 24px; }
+            .meta-section { font-size: 12px; }
+            .meta-label { font-size: 10px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 1px; margin: 0 0 6px 0; }
+            .meta-value { font-size: 13px; font-weight: 600; color: #0f172a; margin: 0 0 4px 0; }
+            .meta-value span { font-weight: 400; }
+            
+            /* Table */
+            table { width: 100%; border-collapse: collapse; margin-bottom: 40px; font-size: 12px; }
+            th, td { padding: 10px 8px; text-align: left; }
+            th { border-bottom: 2px solid #cbd5e1; font-weight: 600; text-transform: uppercase; color: #64748b; font-size: 11px; letter-spacing: 0.5px; }
+            td { border-bottom: 1px solid #e2e8f0; }
+            .right { text-align: right; }
+            .font-mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; color: #3b82f6; }
+            .vehicle-plate { font-size: 11px; color: #64748b; margin-left: 6px; }
+            
+            .footer { position: absolute; bottom: 40px; left: 40px; right: 40px; text-align: center; font-size: 10px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1.5px; border-top: 1px solid #e2e8f0; padding-top: 16px; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="watermark"></div>
+            
+            <div class="content">
+              <div class="header">
+                <div class="header-left">
+                  <div class="logo">
+                    <img src="${baseUrl}/logo.jpeg" alt="PPF Abuja Cars Logo" />
+                  </div>
+                  <div class="company-info">
+                    <h3>PPF Abuja Cars</h3>
+                    <p>Plot 5 Bala Kona Street, off Ahmadu Bello</p>
+                    <p>Expressway, Kado, FCT Abuja</p>
+                    <p>+234 808 535 9774</p>
+                  </div>
+                </div>
+                <div class="header-right">
+                  <h1>Usage History</h1>
+                  <p>Product Report</p>
+                </div>
+              </div>
+              
+              <div class="meta-info">
+                <div class="meta-section">
+                  <p class="meta-label">Product Details</p>
+                  <p class="meta-value">Brand: <span>${selectedHistoryProduct?.brand}</span></p>
+                  <p class="meta-value">Name: <span>${selectedHistoryProduct?.name}</span></p>
+                  ${historyDateFilter ? `<p class="meta-value mt-2">Filtered Date: <span>${historyDateFilter}</span></p>` : ''}
+                </div>
+                <div class="meta-section" style="text-align: right;">
+                  <p class="meta-label">Generated On</p>
+                  <p class="meta-value">${new Date().toLocaleDateString()}</p>
+                  <p class="meta-label" style="margin-top: 12px;">Total Records</p>
+                  <p class="meta-value">${productHistory.length} entry(s)</p>
+                </div>
+              </div>
+
+              <table>
+                <thead>
+                  <tr>
+                    <th style="width: 15%;">Date</th>
+                    <th style="width: 15%;">Order #</th>
+                    <th style="width: 25%;">Customer</th>
+                    <th style="width: 35%;">Vehicle</th>
+                    <th class="right" style="width: 10%;">Qty Used</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${productHistory.map(h => `
+                    <tr>
+                      <td>${formatDate(h.service_orders?.intake_date || h.created_at)}</td>
+                      <td class="font-mono">${h.service_orders?.order_number}</td>
+                      <td>${h.service_orders?.customers?.full_name || 'Unknown'}</td>
+                      <td>
+                        <strong>${h.service_orders?.vehicles?.make} ${h.service_orders?.vehicles?.model}</strong>
+                        <span class="vehicle-plate">(${h.service_orders?.vehicles?.plate_number || 'No Plate'})</span>
+                        ${h.service_orders?.vehicles?.vin ? `<br/><span style="font-size: 10px; color: #94a3b8; font-family: monospace;">VIN: ${h.service_orders.vehicles.vin}</span>` : ''}
+                      </td>
+                      <td class="right" style="font-weight: 600;">${h.quantity_used} ${selectedHistoryProduct?.unit}</td>
+                    </tr>
+                  `).join('')}
+                  ${productHistory.length === 0 ? `<tr><td colspan="5" style="text-align: center; padding: 40px; color: #94a3b8;">No usage records found for this product.</td></tr>` : ''}
+                </tbody>
+              </table>
+            </div>
+            
+            <div class="footer">
+              Generated by PPF Abuja Cars Inventory System
+            </div>
+          </div>
+          
+          <script>
+            window.onload = () => { setTimeout(() => { window.print(); window.close(); }, 500); }
+          </script>
+        </body>
+      </html>
+    `;
+    
+    printWindow.document.write(html);
+    printWindow.document.close();
+  };
 
   return (
     <div className="space-y-6">
@@ -141,7 +328,7 @@ export default function Inventory() {
           {products.map((p: any) => {
             const isLow = p.stock_quantity <= p.reorder_level;
             return (
-              <Card key={p.id} className={`hover:border-primary/30 transition-colors group ${isLow ? "border-amber-500/30" : ""}`}>
+              <Card key={p.id} className={`hover:border-primary/30 transition-colors group cursor-pointer ${isLow ? "border-amber-500/30" : ""}`} onClick={() => openHistory(p)}>
                 <CardContent className="p-5">
                   <div className="flex items-start justify-between mb-3">
                     <div>
@@ -152,7 +339,7 @@ export default function Inventory() {
                       <p className="font-semibold text-sm">{p.name}</p>
                       {p.sku && <p className="text-xs text-muted-foreground font-mono">{p.sku}</p>}
                     </div>
-                    <button onClick={() => openEdit(p)} className="p-1.5 rounded hover:bg-muted opacity-0 group-hover:opacity-100 transition-opacity"><Pencil className="h-3.5 w-3.5" /></button>
+                    <button onClick={(e) => { e.stopPropagation(); openEdit(p); }} className="p-1.5 rounded hover:bg-muted opacity-0 group-hover:opacity-100 transition-opacity"><Pencil className="h-3.5 w-3.5" /></button>
                   </div>
 
                   <div className="space-y-2 text-sm">
@@ -169,16 +356,16 @@ export default function Inventory() {
                       <span className="font-semibold text-primary">{formatCurrency(p.selling_price)}/{p.unit}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">Reorder Level</span>
+                      <span className="text-muted-foreground">Low Stock Threshold</span>
                       <span>{p.reorder_level} {p.unit}</span>
                     </div>
                   </div>
 
                   <div className="flex gap-2 mt-4">
-                    <button onClick={() => { setStockProductId(p.id); setStockType("in"); setStockDialogOpen(true); }} className="flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs font-medium rounded-lg bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 transition-colors">
+                    <button onClick={(e) => { e.stopPropagation(); setStockProductId(p.id); setStockType("in"); setStockDialogOpen(true); }} className="flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs font-medium rounded-lg bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 transition-colors">
                       <TrendingUp className="h-3 w-3" /> Stock In
                     </button>
-                    <button onClick={() => { setStockProductId(p.id); setStockType("out"); setStockDialogOpen(true); }} className="flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs font-medium rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors">
+                    <button onClick={(e) => { e.stopPropagation(); setStockProductId(p.id); setStockType("out"); setStockDialogOpen(true); }} className="flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs font-medium rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors">
                       <TrendingDown className="h-3 w-3" /> Stock Out
                     </button>
                   </div>
@@ -197,10 +384,26 @@ export default function Inventory() {
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label>Brand *</Label>
-                <Select value={brandValue} onValueChange={(v) => { setBrandValue(v); setValue("brand", v); }}>
+                <Select value={brandValue} onValueChange={(v) => { 
+                  setBrandValue(v); 
+                  if (v === "Other") {
+                    setIsCustomBrand(true);
+                    setValue("brand", "");
+                  } else {
+                    setIsCustomBrand(false);
+                    setValue("brand", v); 
+                  }
+                }}>
                   <SelectTrigger><SelectValue placeholder="Select brand..." /></SelectTrigger>
                   <SelectContent>{PPF_BRANDS.map((b: any) => <SelectItem key={b} value={b}>{b}</SelectItem>)}</SelectContent>
                 </Select>
+                {isCustomBrand && (
+                  <Input 
+                    className="mt-2" 
+                    placeholder="Enter custom brand name..." 
+                    {...register("brand")} 
+                  />
+                )}
                 {errors.brand && <p className="text-xs text-destructive">{errors.brand.message}</p>}
               </div>
               <div className="space-y-2">
@@ -239,7 +442,7 @@ export default function Inventory() {
                 <Input id="stock_quantity" type="number" {...register("stock_quantity")} />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="reorder_level">Reorder Level</Label>
+                <Label htmlFor="reorder_level">Low Stock Threshold</Label>
                 <Input id="reorder_level" type="number" {...register("reorder_level")} />
               </div>
             </div>
@@ -283,6 +486,79 @@ export default function Inventory() {
             <Button onClick={() => stockMutation.mutate()} disabled={stockMutation.isPending || stockQty <= 0}>
               {stockMutation.isPending ? "Updating..." : "Update Stock"}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Product History Dialog */}
+      <Dialog open={historyDialogOpen} onOpenChange={setHistoryDialogOpen}>
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <div className="flex items-start justify-between">
+              <div>
+                <DialogTitle className="text-xl">Usage History</DialogTitle>
+                <p className="text-sm text-muted-foreground mt-1 font-medium">{selectedHistoryProduct?.brand} {selectedHistoryProduct?.name}</p>
+              </div>
+              <div className="flex items-center gap-3 pr-6">
+                <Input 
+                  type="date" 
+                  value={historyDateFilter} 
+                  onChange={(e) => setHistoryDateFilter(e.target.value)}
+                  className="h-9 text-sm"
+                />
+                <Button size="sm" onClick={handlePrint} className="gap-2">
+                  <Printer className="h-4 w-4" /> Print Record
+                </Button>
+              </div>
+            </div>
+          </DialogHeader>
+          
+          {historyLoading ? (
+            <div className="flex justify-center py-8 text-muted-foreground">Loading history...</div>
+          ) : productHistory.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              No usage history found for this product.
+            </div>
+          ) : (
+            <div className="space-y-4 mt-2">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-border">
+                      <th className="text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider py-2">Date</th>
+                      <th className="text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider py-2">Order #</th>
+                      <th className="text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider py-2">Customer</th>
+                      <th className="text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider py-2">Vehicle</th>
+                      <th className="text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider py-2">Qty Used</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {productHistory.map((h: any) => (
+                      <tr key={h.id}>
+                        <td className="py-2.5">{formatDate(h.service_orders?.intake_date || h.created_at)}</td>
+                        <td className="py-2.5 font-mono text-xs text-primary">{h.service_orders?.order_number}</td>
+                        <td className="py-2.5 font-medium">{h.service_orders?.customers?.full_name || "Unknown"}</td>
+                        <td className="py-2.5">
+                          <span className="font-medium">{h.service_orders?.vehicles?.make} {h.service_orders?.vehicles?.model}</span>
+                          <span className="text-xs text-muted-foreground ml-2">
+                            ({h.service_orders?.vehicles?.plate_number || "No Plate"})
+                          </span>
+                          {h.service_orders?.vehicles?.vin && (
+                            <div className="text-[10px] text-muted-foreground/70 font-mono mt-0.5">
+                              VIN: {h.service_orders.vehicles.vin}
+                            </div>
+                          )}
+                        </td>
+                        <td className="py-2.5 text-right font-medium">{h.quantity_used} {selectedHistoryProduct?.unit}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setHistoryDialogOpen(false)}>Close</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
