@@ -14,7 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { formatDate, formatCurrency, getStatusLabel } from "@/lib/utils";
+import { formatDate, formatDateTime, formatCurrency, getStatusLabel } from "@/lib/utils";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import type { InvoiceStatus } from "@/integrations/supabase/types";
 import InvoiceDocument from "@/components/InvoiceDocument";
@@ -49,7 +49,7 @@ export default function Invoices() {
     queryKey: ["invoices", search, statusFilter, dateFilter, filterStartDate, filterEndDate],
     queryFn: async (): Promise<any> => {
       let q = supabase.from("invoices")
-        .select("*, customers(full_name, phone), service_orders(order_number, total_amount)")
+        .select("*, customers(full_name, phone), service_orders(order_number, total_amount, service_order_vehicles(vehicles(make, model)))")
         .order("created_at", { ascending: false });
       if (statusFilter !== "all") q = q.eq("status", statusFilter as InvoiceStatus);
       if (search) q = q.ilike("invoice_number", `%${search}%`);
@@ -89,8 +89,26 @@ export default function Invoices() {
   const payMutation = useMutation({
     mutationFn: async (data: PaymentForm) => {
       if (!payInvoiceId) return;
-      const { error } = await supabase.from("invoices").update({ ...data, status: "paid" }).eq("id", payInvoiceId);
+      
+      // 1. Update the invoice to 'paid'
+      const { data: updatedInvoice, error } = await supabase
+        .from("invoices")
+        .update({ ...data, status: "paid" })
+        .eq("id", payInvoiceId)
+        .select()
+        .single();
+        
       if (error) throw error;
+      
+      // 2. Also mark the associated service order as 'completed'
+      if (updatedInvoice?.service_order_id) {
+        const { error: soError } = await supabase
+          .from("service_orders")
+          .update({ status: "completed" })
+          .eq("id", updatedInvoice.service_order_id);
+          
+        if (soError) throw soError;
+      }
     },
     onSuccess: () => {
       toast.success("Payment recorded");
@@ -173,7 +191,7 @@ export default function Invoices() {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-border">
-                  {["Invoice #", "Type", "Customer", "Order #", "Issued", "Due", "Status", "Amount", ""].map((h: any) => (
+                  {["Invoice #", "Type", "Customer", "Vehicle", "Order #", "Issued", "Due", "Status", "Amount", ""].map((h: any) => (
                     <th key={h} className="text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider px-5 py-3">{h}</th>
                   ))}
                 </tr>
@@ -181,19 +199,45 @@ export default function Invoices() {
               <tbody className="divide-y divide-border">
                 {invoices.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map((inv: any) => {
                   const customer = inv.customers as { full_name: string } | null;
-                  const serviceOrder = inv.service_orders as { order_number: string; total_amount: number } | null;
+                  const serviceOrder = inv.service_orders as any;
                   const amount = inv.total_amount ?? serviceOrder?.total_amount ?? 0;
+                  const vehiclesList = serviceOrder?.service_order_vehicles?.map((sov: any) => sov.vehicles).filter(Boolean) || [];
+                  const vehicleName = vehiclesList.length > 0 ? `${vehiclesList[0].make} ${vehiclesList[0].model}` : "—";
+                  
+                  // Identify duplicates and their order
+                  const relatedInvoices = invoices
+                    .filter((i: any) => i.service_order_id === inv.service_order_id && i.invoice_type === inv.invoice_type)
+                    .sort((a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+                  
+                  const duplicateIndex = relatedInvoices.findIndex((i: any) => i.id === inv.id);
+                  const isDuplicate = duplicateIndex > 0;
+                  const originalInvoice = isDuplicate ? relatedInvoices[0] : null;
+                  
                   return (
-                    <tr key={inv.id} className="hover:bg-muted/30 transition-colors">
-                      <td className="px-5 py-3.5 text-sm font-mono font-medium text-primary">{inv.invoice_number}</td>
+                    <tr key={inv.id} className={`transition-colors ${isDuplicate ? 'bg-amber-500/5 hover:bg-amber-500/10' : 'hover:bg-muted/30'}`}>
+                      <td className="px-5 py-3.5 text-sm font-mono font-medium">
+                        <div className="flex items-center gap-2">
+                          <span className="text-primary">{inv.invoice_number}</span>
+                          {isDuplicate && (
+                            <Badge 
+                              variant="outline" 
+                              className="bg-amber-500/10 text-amber-600 border-amber-500/20 text-[9px] px-1.5 py-0 cursor-help"
+                              title={`Duplicate of ${originalInvoice?.invoice_number}`}
+                            >
+                              Duplicate {duplicateIndex}
+                            </Badge>
+                          )}
+                        </div>
+                      </td>
                       <td className="px-5 py-3.5 text-sm">
                         <Badge variant="outline" className={inv.invoice_type === 'parking' ? 'bg-blue-500/10 text-blue-500 border-blue-500/20 capitalize' : 'bg-primary/5 text-primary border-primary/20 capitalize'}>
                           {inv.invoice_type || 'Service'}
                         </Badge>
                       </td>
                       <td className="px-5 py-3.5 text-sm">{customer?.full_name ?? "—"}</td>
+                      <td className="px-5 py-3.5 text-sm truncate max-w-[150px]">{vehicleName}</td>
                       <td className="px-5 py-3.5 text-sm font-mono text-muted-foreground">{serviceOrder?.order_number ?? "—"}</td>
-                      <td className="px-5 py-3.5 text-sm text-muted-foreground">{formatDate(inv.issued_date)}</td>
+                      <td className="px-5 py-3.5 text-sm text-muted-foreground whitespace-nowrap">{formatDateTime(inv.created_at)}</td>
                       <td className="px-5 py-3.5 text-sm text-muted-foreground">{formatDate(inv.due_date)}</td>
                       <td className="px-5 py-3.5">
                         <div className="flex items-center gap-1.5">

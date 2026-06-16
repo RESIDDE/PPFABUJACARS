@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
   TrendingUp, Users, Car, ClipboardList, Package,
@@ -67,6 +68,7 @@ function StatCard({
   iconBg = "bg-primary/10",
   animateTypewriter = false,
   explanation,
+  onClick,
 }: {
   icon: React.ElementType;
   label: string;
@@ -76,14 +78,16 @@ function StatCard({
   iconBg?: string;
   animateTypewriter?: boolean;
   explanation?: string;
+  onClick?: () => void;
 }) {
   const [isHovered, setIsHovered] = useState(false);
 
   return (
     <Card 
-      className="stat-card transition-all h-full"
+      className={`stat-card transition-all h-full ${onClick ? 'cursor-pointer hover:shadow-md' : ''}`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
+      onClick={onClick}
     >
       <CardContent className="p-5 h-full flex flex-col justify-between">
         <div className="flex items-start justify-between">
@@ -114,6 +118,8 @@ function StatCard({
 const COLORS = ["#3b82f6", "#8b5cf6", "#22c55e", "#f59e0b", "#ef4444"];
 
 export default function Dashboard() {
+  const navigate = useNavigate();
+
   const { data: ordersData } = useQuery({
     queryKey: ["dashboard-orders"],
     queryFn: async (): Promise<any> => {
@@ -259,6 +265,7 @@ export default function Dashboard() {
           color="text-blue-400"
           iconBg="bg-blue-500/10"
           explanation="Count of service orders currently marked as 'pending' or 'in progress'."
+          onClick={() => navigate("/service-orders")}
         />
         <StatCard
           icon={TrendingUp}
@@ -269,6 +276,7 @@ export default function Dashboard() {
           iconBg="bg-emerald-500/10"
           animateTypewriter={true}
           explanation="Sum of revenue generated from all service orders with 'completed' or 'delivered' status."
+          onClick={() => navigate("/reports")}
         />
         <StatCard
           icon={Users}
@@ -278,6 +286,7 @@ export default function Dashboard() {
           color="text-violet-400"
           iconBg="bg-violet-500/10"
           explanation="The total number of unique customers registered in the system."
+          onClick={() => navigate("/customers")}
         />
         <StatCard
           icon={Package}
@@ -287,6 +296,7 @@ export default function Dashboard() {
           color="text-amber-400"
           iconBg="bg-amber-500/10"
           explanation="Number of inventory products that have fallen to or below their assigned low stock threshold."
+          onClick={() => navigate("/inventory")}
         />
       </div>
 
@@ -294,7 +304,8 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Revenue Chart */}
         <Card
-          className="lg:col-span-2"
+          className="lg:col-span-2 cursor-pointer hover:shadow-md transition-all"
+          onClick={() => navigate("/reports")}
           onMouseEnter={() => setChartHovered(true)}
           onMouseLeave={() => setChartHovered(false)}
         >
@@ -333,6 +344,8 @@ export default function Dashboard() {
 
         {/* Job Status Pie */}
         <Card
+          className="cursor-pointer hover:shadow-md transition-all"
+          onClick={() => navigate("/service-orders")}
           onMouseEnter={() => setPieHovered(true)}
           onMouseLeave={() => setPieHovered(false)}
         >
@@ -400,7 +413,10 @@ export default function Dashboard() {
       {/* Recent Orders + Low Stock */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Recent service orders */}
-        <Card className="lg:col-span-2">
+        <Card 
+          className="lg:col-span-2 cursor-pointer hover:shadow-md transition-all"
+          onClick={() => navigate("/service-orders")}
+        >
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <CardTitle className="text-sm font-semibold">Recent Service Orders</CardTitle>
@@ -414,7 +430,14 @@ export default function Dashboard() {
                   const customer = order.customers as { full_name: string } | null;
                   const vehicle = order.vehicles as { make: string; model: string; plate_number: string | null } | null;
                   return (
-                    <div key={order.id as string} className="flex items-center justify-between px-6 py-3 hover:bg-muted/30 transition-colors">
+                    <div 
+                      key={order.id as string} 
+                      className="flex items-center justify-between px-6 py-3 hover:bg-muted/30 transition-colors cursor-pointer"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(`/service-orders/${order.id}`);
+                      }}
+                    >
                       <div className="flex items-center gap-3">
                         <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
                           <Car className="h-4 w-4 text-primary" />
@@ -446,7 +469,10 @@ export default function Dashboard() {
         </Card>
 
         {/* Low Stock Alerts */}
-        <Card>
+        <Card 
+          className="cursor-pointer hover:shadow-md transition-all"
+          onClick={() => navigate("/inventory")}
+        >
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <CardTitle className="text-sm font-semibold">Low Stock Alerts</CardTitle>
@@ -457,7 +483,7 @@ export default function Dashboard() {
             {inventoryData && inventoryData.length > 0 ? (
               <div className="divide-y divide-border">
                 {inventoryData.map((product: any, idx: number) => (
-                  <div key={product.name + product.brand} className="px-6 py-3 hover:bg-amber-500/5 transition-colors">
+                  <div key={product.name + product.brand} className="px-6 py-3 hover:bg-amber-500/5 transition-colors cursor-pointer">
                     <div className="flex items-center justify-between mb-1">
                       <p className="text-sm font-semibold truncate text-foreground">{product.name}</p>
                       <span className="text-xs font-bold text-primary uppercase tracking-wider">{product.brand}</span>
