@@ -85,7 +85,6 @@ export interface Database {
           id: string;
           order_number: string;
           customer_id: string;
-          vehicle_id: string;
           status: ServiceOrderStatus;
           intake_date: string;
           estimated_completion: string | null;
@@ -111,6 +110,7 @@ export interface Database {
           id: string;
           service_order_id: string;
           ppf_product_id: string;
+          vehicle_id: string | null;
           area_description: string;
           quantity_used: number;
           unit_price: number;
@@ -122,6 +122,19 @@ export interface Database {
           Database["public"]["Tables"]["service_order_items"]["Row"],
           "id" | "created_at" >>;
         Update: Partial<Database["public"]["Tables"]["service_order_items"]["Insert"]>;
+        Relationships: any[];
+      };
+      service_order_vehicles: {
+        Row: {
+          id: string;
+          service_order_id: string;
+          vehicle_id: string;
+          created_at: string;
+        };
+        Insert: Partial<Omit<
+          Database["public"]["Tables"]["service_order_vehicles"]["Row"],
+          "id" | "created_at" >>;
+        Update: Partial<Database["public"]["Tables"]["service_order_vehicles"]["Insert"]>;
         Relationships: any[];
       };
       invoices: {

@@ -14,6 +14,7 @@ import {
   Sun,
   Moon,
   Receipt,
+  ScrollText,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
@@ -26,6 +27,7 @@ const navItems = [
   { label: "Service Orders", icon: ClipboardList, path: "/service-orders" },
   { label: "PPF Inventory", icon: Package, path: "/inventory" },
   { label: "Invoices", icon: FileText, path: "/invoices" },
+  { label: "Receipts", icon: ScrollText, path: "/receipts" },
   { label: "Expenses", icon: Receipt, path: "/expenses" },
   { label: "Reports", icon: BarChart3, path: "/reports" },
   { label: "Settings", icon: Settings, path: "/settings" },

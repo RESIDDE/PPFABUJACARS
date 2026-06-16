@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Search, ClipboardList, Eye, Calendar, History } from "lucide-react";
+import { Plus, Search, ClipboardList, Eye, Calendar, History, Car, Trash2 } from "lucide-react";
 import { isSameWeek, isSameMonth, subMonths } from "date-fns";
 import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
@@ -25,7 +25,7 @@ const PAGE_SIZE = 15;
 
 const schema = z.object({
   customer_id: z.string().min(1, "Customer is required"),
-  vehicle_id: z.string().min(1, "Vehicle is required"),
+  vehicle_ids: z.array(z.string()).min(1, "Select at least one vehicle"),
   intake_date: z.string().min(1, "Intake date is required"),
   estimated_completion: z.string().optional(),
   technician_name: z.string().optional(),
@@ -53,7 +53,7 @@ export default function ServiceOrders() {
     queryKey: ["service-orders", statusFilter],
     queryFn: async (): Promise<any> => {
       let q = supabase.from("service_orders")
-        .select("*, customers(full_name, phone), vehicles(make, model, plate_number, vin)")
+        .select("*, customers(full_name, phone), service_order_vehicles(vehicles(make, model, plate_number, vin))")
         .order("created_at", { ascending: false });
       if (statusFilter !== "all") q = q.eq("status", statusFilter as ServiceOrderStatus);
       const { data } = await q;
@@ -86,15 +86,19 @@ export default function ServiceOrders() {
     const s = search.toLowerCase();
     return filtered.filter((o: any) => {
       const customer = o.customers as { full_name: string } | null;
-      const vehicle = o.vehicles as { make: string; model: string; plate_number: string | null; vin: string | null } | null;
+      const vehicles = o.service_order_vehicles?.map((sov: any) => sov.vehicles).filter(Boolean) || [];
       
+      const vehicleMatch = vehicles.some((v: any) => 
+        v.plate_number?.toLowerCase().includes(s) ||
+        v.vin?.toLowerCase().includes(s) ||
+        v.make?.toLowerCase().includes(s) ||
+        v.model?.toLowerCase().includes(s)
+      );
+
       return (
         o.order_number?.toLowerCase().includes(s) ||
         customer?.full_name?.toLowerCase().includes(s) ||
-        vehicle?.plate_number?.toLowerCase().includes(s) ||
-        vehicle?.vin?.toLowerCase().includes(s) ||
-        vehicle?.make?.toLowerCase().includes(s) ||
-        vehicle?.model?.toLowerCase().includes(s)
+        vehicleMatch
       );
     });
   }, [ordersData, search, timeFilter]);
@@ -114,15 +118,29 @@ export default function ServiceOrders() {
     enabled: !!selectedCustomer,
   });
 
-  const { register, handleSubmit, reset, setValue, formState: { errors } } = useForm<FormData>({
+  const { register, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: { status: "pending", intake_date: new Date().toISOString().split("T")[0] },
+    defaultValues: { status: "pending", intake_date: new Date().toISOString().split("T")[0], vehicle_ids: [] },
   });
+
+  const watchedVehicleIds = watch("vehicle_ids") || [];
+
+  const toggleVehicle = (id: string) => {
+    const current = watchedVehicleIds;
+    if (current.includes(id)) {
+      setValue("vehicle_ids", current.filter(v => v !== id));
+    } else {
+      setValue("vehicle_ids", [...current, id]);
+    }
+  };
 
   const mutation = useMutation({
     mutationFn: async (data: FormData) => {
-      const { error } = await supabase.from("service_orders").insert({
-        ...data,
+      // 1. Insert service order
+      const { data: order, error } = await supabase.from("service_orders").insert({
+        customer_id: data.customer_id,
+        status: data.status,
+        intake_date: data.intake_date,
         order_number: generateOrderNumber(),
         estimated_completion: data.estimated_completion || null,
         technician_name: data.technician_name || null,
@@ -132,8 +150,18 @@ export default function ServiceOrders() {
         tax: 0,
         service_charge: 0,
         total_amount: 0,
-      });
+      }).select().single();
+      
       if (error) throw error;
+
+      // 2. Insert into service_order_vehicles for each vehicle_id
+      const vehicleInserts = data.vehicle_ids.map(vid => ({
+        service_order_id: order.id,
+        vehicle_id: vid
+      }));
+
+      const { error: vError } = await supabase.from("service_order_vehicles").insert(vehicleInserts);
+      if (vError) throw vError;
     },
     onSuccess: () => {
       toast.success("Service order created");
@@ -141,6 +169,18 @@ export default function ServiceOrders() {
       setDialogOpen(false);
       reset();
       setSelectedCustomer("");
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("service_orders").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Service order deleted");
+      qc.invalidateQueries({ queryKey: ["service-orders"] });
     },
     onError: (e) => toast.error(e.message),
   });
@@ -159,7 +199,7 @@ export default function ServiceOrders() {
           <Button variant="outline" size="icon" onClick={() => setHistoryDialogOpen(true)} className="sm:hidden">
             <History className="h-4 w-4" />
           </Button>
-          <Button onClick={() => { reset({ status: "pending", intake_date: new Date().toISOString().split("T")[0] }); setSelectedCustomer(""); setDialogOpen(true); }}>
+          <Button onClick={() => { reset({ status: "pending", intake_date: new Date().toISOString().split("T")[0], vehicle_ids: [] }); setSelectedCustomer(""); setDialogOpen(true); }}>
             <Plus className="h-4 w-4" /> <span className="hidden sm:inline ml-2">New Order</span>
           </Button>
         </div>
@@ -208,12 +248,16 @@ export default function ServiceOrders() {
           <p className="font-medium">No service orders</p>
         </div>
       ) : (
-                <>
+        <>
           {/* Mobile view (Cards) */}
           <div className="grid grid-cols-1 gap-4 md:hidden">
             {orders.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map((o: any) => {
               const customer = o.customers as { full_name: string } | null;
-              const vehicle = o.vehicles as { make: string; model: string; plate_number: string | null } | null;
+              const vehicles = o.service_order_vehicles?.map((sov: any) => sov.vehicles).filter(Boolean) || [];
+              const vehiclesText = vehicles.length > 0 
+                ? vehicles.map((v: any) => `${v.make} ${v.model}`).join(", ")
+                : "—";
+
               return (
                 <Card key={o.id} className="cursor-pointer hover:border-primary/50 transition-colors" onClick={() => navigate(`/service-orders/${o.id}`)}>
                   <CardContent className="p-4 space-y-3">
@@ -222,13 +266,17 @@ export default function ServiceOrders() {
                         <p className="text-sm font-mono font-bold text-primary mb-1">{o.order_number}</p>
                         <p className="font-medium text-base">{customer?.full_name ?? "—"}</p>
                       </div>
-                      <Badge variant={o.status.replace("-", "_") as "pending" | "in_progress" | "completed" | "delivered" | "cancelled"}>{getStatusLabel(o.status)}</Badge>
+                      <div className="flex items-center gap-2">
+                        <Badge variant={o.status.replace("-", "_") as "pending" | "in_progress" | "completed" | "delivered" | "cancelled"}>{getStatusLabel(o.status)}</Badge>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={(e) => { e.stopPropagation(); if(confirm("Are you sure you want to delete this service order?")) deleteMutation.mutate(o.id); }}>
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
                     </div>
                     <div className="grid grid-cols-2 gap-2 text-sm">
                       <div>
-                        <p className="text-muted-foreground text-xs uppercase tracking-wider mb-0.5">Vehicle</p>
-                        <p className="text-foreground">{vehicle ? `${vehicle.make} ${vehicle.model}` : "—"}</p>
-                        {vehicle?.plate_number && <p className="font-mono text-xs text-muted-foreground mt-0.5">{vehicle.plate_number}</p>}
+                        <p className="text-muted-foreground text-xs uppercase tracking-wider mb-0.5">Vehicles</p>
+                        <p className="text-foreground line-clamp-2">{vehiclesText}</p>
                       </div>
                       <div>
                         <p className="text-muted-foreground text-xs uppercase tracking-wider mb-0.5">Date & Total</p>
@@ -253,7 +301,7 @@ export default function ServiceOrders() {
                   <tr className="border-b border-border">
                     <th className="text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider px-5 py-3">Order #</th>
                     <th className="text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider px-5 py-3">Customer</th>
-                    <th className="text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider px-5 py-3">Vehicle</th>
+                    <th className="text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider px-5 py-3">Vehicles</th>
                     <th className="text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider px-5 py-3">Date</th>
                     <th className="text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider px-5 py-3">Status</th>
                     <th className="text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider px-5 py-3">Total</th>
@@ -263,16 +311,29 @@ export default function ServiceOrders() {
                 <tbody className="divide-y divide-border">
                   {orders.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map((o: any) => {
                     const customer = o.customers as { full_name: string } | null;
-                    const vehicle = o.vehicles as { make: string; model: string; plate_number: string | null } | null;
+                    const vehicles = o.service_order_vehicles?.map((sov: any) => sov.vehicles).filter(Boolean) || [];
+                    const vehiclesText = vehicles.length > 0 
+                      ? vehicles.map((v: any) => `${v.make} ${v.model}`).join(", ")
+                      : "—";
+
                     return (
                       <tr key={o.id} className="table-row-hover" onClick={() => navigate(`/service-orders/${o.id}`)}>
                         <td className="px-5 py-3.5 text-sm font-mono font-medium text-primary">{o.order_number}</td>
                         <td className="px-5 py-3.5 text-sm">{customer?.full_name ?? "—"}</td>
-                        <td className="px-5 py-3.5 text-sm text-muted-foreground">{vehicle ? `${vehicle.make} ${vehicle.model}` : "—"}{vehicle?.plate_number && <span className="ml-1.5 font-mono text-xs bg-muted px-1.5 py-0.5 rounded">{vehicle.plate_number}</span>}</td>
+                        <td className="px-5 py-3.5 text-sm text-muted-foreground max-w-[200px] truncate" title={vehiclesText}>
+                          {vehiclesText}
+                        </td>
                         <td className="px-5 py-3.5 text-sm text-muted-foreground"><div className="flex items-center gap-1.5"><Calendar className="h-3.5 w-3.5" />{formatDate(o.intake_date)}</div></td>
                         <td className="px-5 py-3.5"><Badge variant={o.status.replace("-", "_") as "pending" | "in_progress" | "completed" | "delivered" | "cancelled"}>{getStatusLabel(o.status)}</Badge></td>
                         <td className="px-5 py-3.5 text-sm font-semibold text-right">{formatCurrency(o.total_amount)}</td>
-                        <td className="px-5 py-3.5"><Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); navigate(`/service-orders/${o.id}`); }}><Eye className="h-4 w-4" /></Button></td>
+                        <td className="px-5 py-3.5">
+                          <div className="flex items-center justify-end gap-1">
+                            <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); navigate(`/service-orders/${o.id}`); }}><Eye className="h-4 w-4" /></Button>
+                            <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={(e) => { e.stopPropagation(); if(confirm("Are you sure you want to delete this service order?")) deleteMutation.mutate(o.id); }}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </td>
                       </tr>
                     );
                   })}
@@ -294,19 +355,39 @@ export default function ServiceOrders() {
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label>Customer *</Label>
-                <Select onValueChange={(v) => { setSelectedCustomer(v); setValue("customer_id", v); }}>
+                <Select onValueChange={(v) => { 
+                  setSelectedCustomer(v); 
+                  setValue("customer_id", v); 
+                  setValue("vehicle_ids", []); 
+                }}>
                   <SelectTrigger><SelectValue placeholder="Select customer..." /></SelectTrigger>
                   <SelectContent>{customers.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.full_name}</SelectItem>)}</SelectContent>
                 </Select>
                 {errors.customer_id && <p className="text-xs text-destructive">{errors.customer_id.message}</p>}
               </div>
+              
               <div className="space-y-2">
-                <Label>Vehicle *</Label>
-                <Select onValueChange={(v) => setValue("vehicle_id", v)} disabled={!selectedCustomer}>
-                  <SelectTrigger><SelectValue placeholder="Select vehicle..." /></SelectTrigger>
-                  <SelectContent>{customerVehicles.map((v: any) => <SelectItem key={v.id} value={v.id}>{v.make} {v.model} {v.plate_number ? `· ${v.plate_number}` : ""}</SelectItem>)}</SelectContent>
-                </Select>
-                {errors.vehicle_id && <p className="text-xs text-destructive">{errors.vehicle_id.message}</p>}
+                <Label>Vehicles *</Label>
+                <div className="flex flex-col gap-1.5 max-h-[120px] overflow-y-auto p-2 border border-border rounded-md bg-muted/10">
+                  {!selectedCustomer ? (
+                    <p className="text-xs text-muted-foreground p-1">Select a customer first</p>
+                  ) : customerVehicles.length === 0 ? (
+                    <p className="text-xs text-muted-foreground p-1">No vehicles found</p>
+                  ) : (
+                    customerVehicles.map((v: any) => (
+                      <label key={v.id} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-muted/30 p-1 rounded">
+                        <input 
+                          type="checkbox" 
+                          checked={watchedVehicleIds.includes(v.id)}
+                          onChange={() => toggleVehicle(v.id)}
+                          className="accent-primary w-4 h-4 rounded"
+                        />
+                        <span className="truncate flex-1">{v.make} {v.model} {v.plate_number ? `· ${v.plate_number}` : ""}</span>
+                      </label>
+                    ))
+                  )}
+                </div>
+                {errors.vehicle_ids && <p className="text-xs text-destructive">{errors.vehicle_ids.message}</p>}
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">

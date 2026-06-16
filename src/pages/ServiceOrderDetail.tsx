@@ -23,6 +23,7 @@ import type { ServiceOrderStatus } from "@/integrations/supabase/types";
 
 const itemSchema = z.object({
   ppf_product_id: z.string().min(1, "Product is required"),
+  vehicle_id: z.string().optional(),
   area_description: z.string().min(1, "Area is required"),
   quantity_used: z.coerce.number().min(0.1, "Quantity must be > 0"),
   unit_price: z.coerce.number().min(0),
@@ -49,7 +50,7 @@ export default function ServiceOrderDetail() {
     queryKey: ["service-order", id],
     queryFn: async (): Promise<any> => {
       const { data } = await supabase.from("service_orders")
-        .select("*, customers(*), vehicles(*), service_order_items(*, ppf_products(name, brand, unit))")
+        .select("*, customers(*), service_order_vehicles(vehicles(*)), service_order_items(*, ppf_products(name, brand, unit), vehicles(make, model, plate_number))")
         .eq("id", id!)
         .single();
       return data;
@@ -88,6 +89,7 @@ export default function ServiceOrderDetail() {
       const { error } = await supabase.from("service_order_items").insert({
         service_order_id: id!,
         ppf_product_id: data.ppf_product_id,
+        vehicle_id: data.vehicle_id || null,
         area_description: data.area_description,
         quantity_used: data.quantity_used,
         unit_price: data.unit_price,
@@ -190,14 +192,15 @@ export default function ServiceOrderDetail() {
     onError: (e) => toast.error(e.message),
   });
 
-  const vehicle = order?.vehicles as { make: string; model: string; color: string | null; plate_number: string | null; year: number | null; parking_location: string | null; items_found: string[] | null } | null;
+  const vehicles = order?.service_order_vehicles?.map((sov: any) => sov.vehicles).filter(Boolean) || [];
+  const primaryVehicle = vehicles[0]; // fallback for parking logic
 
   const insidePrice = Number(localStorage.getItem("insideParkingPrice")) || 0;
   const outsidePrice = Number(localStorage.getItem("outsideParkingPrice")) || 0;
 
   const getParkingPrice = () => {
-    if (vehicle?.parking_location === "Inside view") return insidePrice;
-    if (vehicle?.parking_location === "Outside view") return outsidePrice;
+    if (primaryVehicle?.parking_location === "Inside view") return insidePrice;
+    if (primaryVehicle?.parking_location === "Outside view") return outsidePrice;
     return 0;
   };
 
@@ -205,7 +208,7 @@ export default function ServiceOrderDetail() {
     mutationFn: async () => {
       if (!order) throw new Error("No order loaded");
       const flatPrice = getParkingPrice();
-      if (flatPrice === 0) throw new Error(`Parking price is not set for '${vehicle?.parking_location}'. Please configure it in Settings.`);
+      if (flatPrice === 0) throw new Error(`Parking price is not set for '${primaryVehicle?.parking_location}'. Please configure it in Settings.`);
 
       const { error } = await supabase.from("invoices").insert({
         invoice_number: generateInvoiceNumber(),
@@ -216,7 +219,7 @@ export default function ServiceOrderDetail() {
         amount_paid: 0,
         invoice_type: "parking",
         total_amount: flatPrice,
-        notes: `Parking fee (${vehicle?.parking_location})`,
+        notes: `Parking fee (${primaryVehicle?.parking_location})`,
       });
       if (error) throw error;
     },
@@ -232,7 +235,7 @@ export default function ServiceOrderDetail() {
   if (!order) return <div className="text-center py-16 text-muted-foreground">Order not found</div>;
 
   const customer = order.customers as { full_name: string; phone: string; email: string | null } | null;
-  const items = (order.service_order_items ?? []) as Array<{ id: string; area_description: string; quantity_used: number; unit_price: number; line_total: number; notes: string | null; ppf_products: { name: string; brand: string; unit: string } | null }>;
+  const items = (order.service_order_items ?? []) as Array<{ id: string; area_description: string; quantity_used: number; unit_price: number; line_total: number; notes: string | null; ppf_products: { name: string; brand: string; unit: string } | null; vehicles: { make: string; model: string; plate_number: string | null } | null }>;
 
   return (
     <div className="space-y-6 max-w-5xl">
@@ -252,7 +255,7 @@ export default function ServiceOrderDetail() {
         {/* Left: Details */}
         <div className="lg:col-span-2 space-y-4">
           {/* Info cards */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Card>
               <CardContent className="p-5">
                 <div className="flex items-center gap-2 mb-3 text-muted-foreground"><User className="h-4 w-4" /><span className="text-xs font-semibold uppercase tracking-wider">Customer</span></div>
@@ -266,31 +269,25 @@ export default function ServiceOrderDetail() {
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2 text-muted-foreground">
                     <Car className="h-4 w-4" />
-                    <span className="text-xs font-semibold uppercase tracking-wider">Vehicle</span>
+                    <span className="text-xs font-semibold uppercase tracking-wider">Vehicles ({vehicles.length})</span>
                   </div>
                 </div>
-                <p className="font-semibold">{vehicle?.make} {vehicle?.model}</p>
-                <p className="text-sm text-muted-foreground mt-1">{vehicle?.year} · {vehicle?.color}</p>
-                <div className="flex items-center flex-wrap gap-2 mt-2">
-                  {vehicle?.plate_number && <span className="font-mono text-xs bg-muted px-2 py-0.5 rounded text-muted-foreground">{vehicle.plate_number}</span>}
-                  {vehicle?.parking_location && (
-                    <Badge variant="outline" className="text-xs font-normal border-primary/20 text-primary bg-primary/5 flex items-center gap-1">
-                      <MapPin className="h-3 w-3" />
-                      {vehicle.parking_location}
-                    </Badge>
-                  )}
-                </div>
-                
-                {vehicle?.items_found && vehicle.items_found.length > 0 && (
-                  <div className="mt-4 pt-3 border-t border-border/50">
-                    <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">Items Found in Car</p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {vehicle.items_found.map(item => (
-                        <span key={item} className="text-xs bg-muted/50 px-2 py-1 rounded text-muted-foreground border border-border/50">{item}</span>
-                      ))}
+                <div className="space-y-3 max-h-[120px] overflow-y-auto pr-2">
+                  {vehicles.map((v: any) => (
+                    <div key={v.id} className="border-b border-border/50 pb-2 last:border-0 last:pb-0">
+                      <p className="font-semibold text-sm">{v.make} {v.model}</p>
+                      <div className="flex items-center flex-wrap gap-2 mt-1">
+                        {v.plate_number && <span className="font-mono text-[10px] bg-muted px-1.5 py-0.5 rounded text-muted-foreground">{v.plate_number}</span>}
+                        {v.parking_location && (
+                          <Badge variant="outline" className="text-[10px] font-normal border-primary/20 text-primary bg-primary/5 flex items-center gap-1">
+                            <MapPin className="h-3 w-3" />
+                            {v.parking_location}
+                          </Badge>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  ))}
+                </div>
               </CardContent>
             </Card>
           </div>
@@ -333,11 +330,19 @@ export default function ServiceOrderDetail() {
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
-                    <thead><tr className="border-y border-border"><th className="text-left text-xs text-muted-foreground px-5 py-2.5 font-semibold uppercase tracking-wider">Product</th><th className="text-left text-xs text-muted-foreground px-5 py-2.5 font-semibold uppercase tracking-wider">Area</th><th className="text-right text-xs text-muted-foreground px-5 py-2.5 font-semibold uppercase tracking-wider">Qty</th><th className="text-right text-xs text-muted-foreground px-5 py-2.5 font-semibold uppercase tracking-wider">Price</th><th className="text-right text-xs text-muted-foreground px-5 py-2.5 font-semibold uppercase tracking-wider">Total</th><th className="px-3 py-2.5" /></tr></thead>
+                    <thead><tr className="border-y border-border"><th className="text-left text-xs text-muted-foreground px-5 py-2.5 font-semibold uppercase tracking-wider">Product & Vehicle</th><th className="text-left text-xs text-muted-foreground px-5 py-2.5 font-semibold uppercase tracking-wider">Area</th><th className="text-right text-xs text-muted-foreground px-5 py-2.5 font-semibold uppercase tracking-wider">Qty</th><th className="text-right text-xs text-muted-foreground px-5 py-2.5 font-semibold uppercase tracking-wider">Price</th><th className="text-right text-xs text-muted-foreground px-5 py-2.5 font-semibold uppercase tracking-wider">Total</th><th className="px-3 py-2.5" /></tr></thead>
                     <tbody className="divide-y divide-border">
                       {items.map((item: any) => (
                         <tr key={item.id}>
-                          <td className="px-5 py-3"><p className="font-medium">{item.ppf_products?.name}</p><p className="text-xs text-muted-foreground">{item.ppf_products?.brand}</p></td>
+                          <td className="px-5 py-3">
+                            <p className="font-medium">{item.ppf_products?.name}</p>
+                            <p className="text-xs text-muted-foreground">{item.ppf_products?.brand}</p>
+                            {item.vehicles && (
+                              <Badge variant="outline" className="mt-1 text-[9px] px-1 py-0 bg-muted/50">
+                                {item.vehicles.make} {item.vehicles.model}
+                              </Badge>
+                            )}
+                          </td>
                           <td className="px-5 py-3 text-muted-foreground">{item.area_description}</td>
                           <td className="px-5 py-3 text-right">{item.quantity_used} {item.ppf_products?.unit}</td>
                           <td className="px-5 py-3 text-right">{formatCurrency(item.unit_price)}</td>
@@ -424,10 +429,12 @@ export default function ServiceOrderDetail() {
               {createInvoiceMutation.isPending ? "Creating..." : "Generate Service Invoice"}
             </Button>
             
-            <Button className="w-full" variant="outline" onClick={() => setParkingInvoiceOpen(true)} disabled={createParkingInvoiceMutation.isPending}>
-              <Car className="h-4 w-4" />
-              Generate Parking Invoice
-            </Button>
+            {vehicles.length === 1 && (
+              <Button className="w-full" variant="outline" onClick={() => setParkingInvoiceOpen(true)} disabled={createParkingInvoiceMutation.isPending}>
+                <Car className="h-4 w-4" />
+                Generate Parking Invoice
+              </Button>
+            )}
           </div>
 
           {order.notes && (
@@ -446,6 +453,21 @@ export default function ServiceOrderDetail() {
         <DialogContent>
           <DialogHeader><DialogTitle>Add PPF Service Item</DialogTitle></DialogHeader>
           <form onSubmit={handleSubmit((d) => addItemMutation.mutate(d))} className="space-y-4">
+            
+            {vehicles.length > 0 && (
+              <div className="space-y-2">
+                <Label>Which Vehicle? (Optional)</Label>
+                <Select onValueChange={(v) => setValue("vehicle_id", v)}>
+                  <SelectTrigger><SelectValue placeholder="Applies to all or select one..." /></SelectTrigger>
+                  <SelectContent>
+                    {vehicles.map((v: any) => (
+                      <SelectItem key={v.id} value={v.id}>{v.make} {v.model} {v.plate_number ? `(${v.plate_number})` : ""}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
             <div className="space-y-2">
               <Label>PPF Product *</Label>
               <Select onValueChange={(v) => {
@@ -576,7 +598,7 @@ export default function ServiceOrderDetail() {
             <div className="text-sm p-3 bg-muted/50 rounded-lg border border-border">
               <div className="flex justify-between mb-1">
                 <span className="text-muted-foreground">Location:</span>
-                <span className="font-medium">{vehicle?.parking_location || "Not specified"}</span>
+                <span className="font-medium">{primaryVehicle?.parking_location || "Not specified"}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Rate:</span>
@@ -605,6 +627,3 @@ export default function ServiceOrderDetail() {
     </div>
   );
 }
-
-
-

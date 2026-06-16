@@ -80,6 +80,7 @@ export default function BatchInvoiceDocument({ invoiceIds, onClose }: { invoiceI
     ${allCss}
 
     /* ── Print overrides ── */
+    @page { margin: 0; }
     *, *::before, *::after { box-sizing: border-box; }
     body {
       margin: 0;

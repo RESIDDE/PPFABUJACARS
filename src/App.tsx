@@ -17,6 +17,7 @@ const ServiceOrders = lazy(() => import("@/pages/ServiceOrders"));
 const ServiceOrderDetail = lazy(() => import("@/pages/ServiceOrderDetail"));
 const Inventory = lazy(() => import("@/pages/Inventory"));
 const Invoices = lazy(() => import("@/pages/Invoices"));
+const Receipts = lazy(() => import("@/pages/Receipts"));
 const Reports = lazy(() => import("@/pages/Reports"));
 const Settings = lazy(() => import("@/pages/Settings"));
 const Expenses = lazy(() => import("@/pages/Expenses"));
@@ -96,6 +97,7 @@ function AppRoutes() {
                     <Route path="/service-orders/:id" element={<ServiceOrderDetail />} />
                     <Route path="/inventory" element={<Inventory />} />
                     <Route path="/invoices" element={<Invoices />} />
+                    <Route path="/receipts" element={<Receipts />} />
                     <Route path="/reports" element={<Reports />} />
                     <Route path="/expenses" element={<Expenses />} />
                     <Route path="/settings" element={<Settings />} />

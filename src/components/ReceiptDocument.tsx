@@ -52,7 +52,7 @@ function extractAllCss(): string {
 }
 // ─────────────────────────────────────────────────────────────────────────────
 
-export default function InvoiceDocument({ invoiceId, onClose, hideHeader }: { invoiceId: string; onClose?: () => void; hideHeader?: boolean }) {
+export default function ReceiptDocument({ invoiceId, onClose, hideHeader }: { invoiceId: string; onClose?: () => void; hideHeader?: boolean }) {
   const invoiceRef = useRef<HTMLDivElement>(null);
   const [downloading, setDownloading] = useState(false);
 
@@ -85,7 +85,7 @@ export default function InvoiceDocument({ invoiceId, onClose, hideHeader }: { in
 <html>
 <head>
   <meta charset="UTF-8" />
-  <title>Invoice</title>
+  <title>Receipt</title>
   <style>
     /* ── CSS variable fallbacks (light mode) ── */
     :root {
@@ -170,7 +170,7 @@ export default function InvoiceDocument({ invoiceId, onClose, hideHeader }: { in
       }
 
       const link = document.createElement("a");
-      link.download = `Invoice-${invoice?.invoice_number}.png`;
+      link.download = `Receipt-${invoice?.invoice_number}.png`;
       link.href = canvas.toDataURL("image/png");
       link.click();
     } catch (error) {
@@ -200,7 +200,7 @@ export default function InvoiceDocument({ invoiceId, onClose, hideHeader }: { in
       {!hideHeader && (
         <div className="no-print flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 pr-12 border-b border-border bg-muted/30 sticky top-0 z-10 gap-4">
           <div>
-            <h2 className="text-lg font-semibold">Invoice Preview</h2>
+            <h2 className="text-lg font-semibold">Receipt Preview</h2>
             <p className="text-sm text-muted-foreground">Print to PDF or Download as PNG</p>
           </div>
           <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
@@ -244,8 +244,8 @@ export default function InvoiceDocument({ invoiceId, onClose, hideHeader }: { in
                 </div>
               </div>
               <div className="text-right">
-                <h1 className="text-3xl font-black text-primary tracking-tight uppercase">Invoice</h1>
-                <p className="text-sm text-muted-foreground font-mono mt-1">#{invoice.invoice_number}</p>
+                <h1 className="text-3xl font-black text-primary tracking-tight uppercase">Payment Receipt</h1>
+                <p className="text-sm text-muted-foreground font-mono mt-1">RCPT-#{invoice.invoice_number}</p>
                 {isParking && (
                   <span className="inline-block mt-2 px-2.5 py-0.5 bg-blue-500/10 text-blue-600 text-[10px] font-bold tracking-wider rounded border border-blue-500/20 uppercase">
                     Parking Invoice
@@ -269,8 +269,8 @@ export default function InvoiceDocument({ invoiceId, onClose, hideHeader }: { in
                   <p className="font-medium text-xs">{formatDate(invoice.issued_date)}</p>
                 </div>
                 <div>
-                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Due Date</p>
-                  <p className="font-medium text-xs">{invoice.due_date ? formatDate(invoice.due_date) : "Upon receipt"}</p>
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Payment Date</p>
+                  <p className="font-medium text-xs">{invoice.payment_date ? formatDate(invoice.payment_date) : formatDate(invoice.updated_at)}</p>
                 </div>
                 {vehicles.length > 0 && (
                   <div className="col-span-2 mt-1">
@@ -377,21 +377,16 @@ export default function InvoiceDocument({ invoiceId, onClose, hideHeader }: { in
             {/* ── FOOTER ── */}
             <div className="pt-3 border-t border-border/50 space-y-3">
               {/* Payment Details */}
-              <div className="p-3.5 rounded-lg bg-primary/5 border border-primary/15">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-primary mb-2 text-center">Payment Details</p>
-                <p className="text-[10px] text-muted-foreground text-center mb-2.5">Kindly make payment to the account details below:</p>
-                <div className="grid grid-cols-3 gap-3 text-center">
+              <div className="p-3.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-600 mb-2 text-center">Payment Confirmation</p>
+                <div className="grid grid-cols-2 gap-3 text-center">
                   <div>
-                    <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground mb-0.5">Bank</p>
-                    <p className="text-xs font-semibold text-foreground">Providus Bank</p>
+                    <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground mb-0.5">Payment Method</p>
+                    <p className="text-xs font-semibold text-foreground">{invoice.payment_method || "N/A"}</p>
                   </div>
                   <div>
-                    <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground mb-0.5">Account Number</p>
-                    <p className="text-xs font-bold font-mono text-primary tracking-wider">1309339336</p>
-                  </div>
-                  <div>
-                    <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground mb-0.5">Account Name</p>
-                    <p className="text-xs font-semibold text-foreground">ABUJACAR PROP & AUTOMOBILE LTD</p>
+                    <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground mb-0.5">Amount Paid</p>
+                    <p className="text-xs font-bold font-mono text-emerald-600 tracking-wider">{formatCurrency(invoice.amount_paid || 0)}</p>
                   </div>
                 </div>
               </div>

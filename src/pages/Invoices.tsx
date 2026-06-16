@@ -1,6 +1,7 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { FileText, Search, CheckCircle2, Clock, AlertCircle, CreditCard } from "lucide-react";
+import { FileText, Search, CheckCircle2, Clock, AlertCircle, CreditCard, Trash2 } from "lucide-react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -41,6 +42,7 @@ export default function Invoices() {
   const [payDialogOpen, setPayDialogOpen] = useState(false);
   const [payInvoiceId, setPayInvoiceId] = useState<string | null>(null);
   const [previewInvoiceId, setPreviewInvoiceId] = useState<string | null>(null);
+  const navigate = useNavigate();
   const qc = useQueryClient();
 
   const { data: invoices = [], isLoading } = useQuery({
@@ -95,6 +97,19 @@ export default function Invoices() {
       qc.invalidateQueries({ queryKey: ["invoices"] });
       setPayDialogOpen(false);
       reset();
+      navigate("/receipts");
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("invoices").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Invoice deleted");
+      qc.invalidateQueries({ queryKey: ["invoices"] });
     },
     onError: (e) => toast.error(e.message),
   });
@@ -202,6 +217,9 @@ export default function Invoices() {
                               </Button>
                             </>
                           )}
+                          <Button size="sm" variant="ghost" className="text-destructive hover:bg-destructive/10 hover:text-destructive p-0 h-8 w-8 ml-1" onClick={() => { if(confirm("Are you sure you want to delete this invoice?")) deleteMutation.mutate(inv.id); }}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
                         </div>
                       </td>
                     </tr>
