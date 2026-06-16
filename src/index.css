@@ -267,6 +267,10 @@
 
 /* --- PRINT STYLES ----------------------------------------- */
 @media print {
+  @page {
+    margin: 0;
+  }
+
   /* Force light theme colours */
   :root {
     --background: 0 0% 100%;
