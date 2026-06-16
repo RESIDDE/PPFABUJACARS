@@ -160,7 +160,7 @@ export default function Reports() {
 
   return (
     <div className="space-y-6">
-      <div className={cn("flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 sticky top-0 z-10 bg-background/80 backdrop-blur-md p-2 rounded-lg border border-border/50", exportMode ? "hidden" : "no-print")}>
+      <div className={cn("flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-background/50 p-2 rounded-lg border border-border/50", exportMode ? "hidden" : "no-print")}>
         <div>
           <h1 className="text-2xl font-bold">Reports & Analytics</h1>
           <p className="text-sm text-muted-foreground mt-1">Business performance overview</p>

@@ -11,7 +11,7 @@ export function AppLayout({ children }: AppLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
-    <div className="h-screen flex relative overflow-hidden">
+    <div className="h-[100dvh] flex relative overflow-hidden">
       {/* Background Image Layer */}
       <div className="fixed inset-0 z-0 pointer-events-none">
         <img
