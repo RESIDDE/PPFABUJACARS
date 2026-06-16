@@ -391,7 +391,7 @@ export default function InvoiceDocument({ invoiceId, onClose, hideHeader }: { in
                   </div>
                   <div>
                     <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground mb-0.5">Account Name</p>
-                    <p className="text-xs font-semibold text-foreground">ABUJACAR PROP & AUTOMOBILE LTD</p>
+                    <p className="text-xs font-semibold text-foreground">ABUJACAR PPF</p>
                   </div>
                 </div>
               </div>
