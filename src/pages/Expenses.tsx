@@ -60,6 +60,8 @@ export default function Expenses() {
   const [page, setPage] = useState(1);
   const [filterVehicle, setFilterVehicle] = useState("all");
   const [filterTime, setFilterTime] = useState("all");
+  const [filterStartDate, setFilterStartDate] = useState("");
+  const [filterEndDate, setFilterEndDate] = useState("");
   const [selectedCustomer, setSelectedCustomer] = useState("");
   const [displayAmount, setDisplayAmount] = useState("");
   
@@ -116,7 +118,13 @@ export default function Expenses() {
     let filtered = expensesRaw;
     const now = new Date();
     
-    if (filterTime !== "all") {
+    if (filterStartDate || filterEndDate) {
+      filtered = filtered.filter((e: any) => {
+        if (filterStartDate && e.expense_date < filterStartDate) return false;
+        if (filterEndDate && e.expense_date > filterEndDate) return false;
+        return true;
+      });
+    } else if (filterTime !== "all") {
       filtered = filtered.filter((e: any) => {
         const d = new Date(e.expense_date);
         if (filterTime === "this_week") return isSameWeek(d, now);
@@ -441,6 +449,23 @@ export default function Expenses() {
           <Input placeholder="Search description, technician, vehicle, VIN..." className="pl-9" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} />
         </div>
         <div className="flex flex-wrap gap-2">
+          <div className="flex items-center gap-1">
+            <Input 
+              type="date" 
+              value={filterStartDate} 
+              onChange={(e) => { setFilterStartDate(e.target.value); setPage(1); }}
+              className="w-[130px]"
+              title="Start Date"
+            />
+            <span className="text-muted-foreground">-</span>
+            <Input 
+              type="date" 
+              value={filterEndDate} 
+              onChange={(e) => { setFilterEndDate(e.target.value); setPage(1); }}
+              className="w-[130px]"
+              title="End Date"
+            />
+          </div>
           <Select value={filterTime} onValueChange={(v) => { setFilterTime(v); setPage(1); }}>
             <SelectTrigger className="w-[140px]"><SelectValue placeholder="Time Period" /></SelectTrigger>
             <SelectContent>

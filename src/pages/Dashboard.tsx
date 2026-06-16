@@ -66,6 +66,7 @@ function StatCard({
   color = "text-primary",
   iconBg = "bg-primary/10",
   animateTypewriter = false,
+  explanation,
 }: {
   icon: React.ElementType;
   label: string;
@@ -74,22 +75,37 @@ function StatCard({
   color?: string;
   iconBg?: string;
   animateTypewriter?: boolean;
+  explanation?: string;
 }) {
+  const [isHovered, setIsHovered] = useState(false);
+
   return (
-    <Card className="stat-card">
-      <CardContent className="p-5">
+    <Card 
+      className="stat-card transition-all h-full"
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
+      <CardContent className="p-5 h-full flex flex-col justify-between">
         <div className="flex items-start justify-between">
-          <div>
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">{label}</p>
+          <div className="w-full">
+            <div className="flex justify-between items-center w-full mb-2">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{label}</p>
+              {isHovered && explanation && <span className="text-[10px] text-muted-foreground uppercase tracking-wider ml-2 shrink-0">(Info)</span>}
+            </div>
             <div className="text-2xl font-bold text-foreground">
               {animateTypewriter ? <TypewriterValue text={String(value)} /> : value}
             </div>
             {sub && <p className="text-xs text-muted-foreground mt-1">{sub}</p>}
           </div>
-          <div className={`h-10 w-10 rounded-lg ${iconBg} flex items-center justify-center`}>
+          <div className={`h-10 w-10 rounded-lg ${iconBg} flex items-center justify-center shrink-0 ml-4`}>
             <Icon className={`h-5 w-5 ${color}`} />
           </div>
         </div>
+        {isHovered && explanation && (
+          <p className="text-xs text-muted-foreground mt-3 pt-3 border-t border-border/50 animate-in fade-in duration-300">
+            {explanation}
+          </p>
+        )}
       </CardContent>
     </Card>
   );
@@ -242,6 +258,7 @@ export default function Dashboard() {
           sub="In progress + Pending"
           color="text-blue-400"
           iconBg="bg-blue-500/10"
+          explanation="Count of service orders currently marked as 'pending' or 'in progress'."
         />
         <StatCard
           icon={TrendingUp}
@@ -251,6 +268,7 @@ export default function Dashboard() {
           color="text-emerald-400"
           iconBg="bg-emerald-500/10"
           animateTypewriter={true}
+          explanation="Sum of revenue generated from all service orders with 'completed' or 'delivered' status."
         />
         <StatCard
           icon={Users}
@@ -259,6 +277,7 @@ export default function Dashboard() {
           sub="Total registered"
           color="text-violet-400"
           iconBg="bg-violet-500/10"
+          explanation="The total number of unique customers registered in the system."
         />
         <StatCard
           icon={Package}
@@ -267,6 +286,7 @@ export default function Dashboard() {
           sub="Items need restocking"
           color="text-amber-400"
           iconBg="bg-amber-500/10"
+          explanation="Number of inventory products that have fallen to or below their assigned low stock threshold."
         />
       </div>
 
@@ -279,9 +299,15 @@ export default function Dashboard() {
           onMouseLeave={() => setChartHovered(false)}
         >
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold">
-              Revenue Trend {chartHovered && <span className="text-xs font-normal text-muted-foreground ml-2">(paused)</span>}
+            <CardTitle className="text-sm font-semibold flex items-center justify-between">
+              <span>Revenue Trend</span>
+              {chartHovered && <span className="text-[10px] font-normal text-muted-foreground uppercase tracking-wider">(Paused)</span>}
             </CardTitle>
+            {chartHovered && (
+              <p className="text-xs text-muted-foreground mt-1 animate-in fade-in slide-in-from-top-1 duration-300">
+                Displays the total revenue generated each month. This is calculated by summing the total amount of all service orders marked as 'completed' or 'delivered' within that month.
+              </p>
+            )}
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={220}>
@@ -311,7 +337,15 @@ export default function Dashboard() {
           onMouseLeave={() => setPieHovered(false)}
         >
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold">Job Status</CardTitle>
+            <CardTitle className="text-sm font-semibold flex items-center justify-between">
+              <span>Job Status</span>
+              {pieHovered && <span className="text-[10px] font-normal text-muted-foreground uppercase tracking-wider">(Paused)</span>}
+            </CardTitle>
+            {pieHovered && (
+              <p className="text-xs text-muted-foreground mt-1 animate-in fade-in slide-in-from-top-1 duration-300">
+                Shows the distribution of service orders by their current status. This represents all service orders recorded in the system.
+              </p>
+            )}
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={150}>

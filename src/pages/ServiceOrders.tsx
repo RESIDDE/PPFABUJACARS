@@ -40,6 +40,8 @@ export default function ServiceOrders() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [timeFilter, setTimeFilter] = useState("all");
+  const [filterStartDate, setFilterStartDate] = useState("");
+  const [filterEndDate, setFilterEndDate] = useState("");
   const [page, setPage] = useState(1);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [historyDialogOpen, setHistoryDialogOpen] = useState(false);
@@ -63,7 +65,14 @@ export default function ServiceOrders() {
     const now = new Date();
     let filtered = ordersData;
     
-    if (timeFilter !== "all") {
+    if (filterStartDate || filterEndDate) {
+      filtered = filtered.filter((o: any) => {
+        const dStr = (o.intake_date || o.created_at).split("T")[0];
+        if (filterStartDate && dStr < filterStartDate) return false;
+        if (filterEndDate && dStr > filterEndDate) return false;
+        return true;
+      });
+    } else if (timeFilter !== "all") {
       filtered = filtered.filter((o: any) => {
         const d = new Date(o.intake_date || o.created_at);
         if (timeFilter === "this_week") return isSameWeek(d, now);
@@ -161,6 +170,11 @@ export default function ServiceOrders() {
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input placeholder="Search order, customer, VIN, plate..." className="pl-9 w-64" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} />
+        </div>
+        <div className="flex items-center gap-1">
+          <Input type="date" value={filterStartDate} onChange={(e) => { setFilterStartDate(e.target.value); setPage(1); }} className="w-[130px]" title="Start Date" />
+          <span className="text-muted-foreground">-</span>
+          <Input type="date" value={filterEndDate} onChange={(e) => { setFilterEndDate(e.target.value); setPage(1); }} className="w-[130px]" title="End Date" />
         </div>
         
         <Select value={timeFilter} onValueChange={(v) => { setTimeFilter(v); setPage(1); }}>

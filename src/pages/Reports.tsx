@@ -9,6 +9,7 @@ import { Printer, Download, Loader2 } from "lucide-react";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
@@ -18,6 +19,9 @@ const COLORS = ["#3b82f6", "#8b5cf6", "#22c55e", "#f59e0b", "#ef4444", "#06b6d4"
 
 export default function Reports() {
   const [filterDate, setFilterDate] = useState("all");
+  const [filterStartDate, setFilterStartDate] = useState("");
+  const [filterEndDate, setFilterEndDate] = useState("");
+  const [hoveredCard, setHoveredCard] = useState<string | null>(null);
   const [downloading, setDownloading] = useState(false);
   const [exportMode, setExportMode] = useState(false);
   const reportRef = useRef<HTMLDivElement>(null);
@@ -27,6 +31,14 @@ export default function Reports() {
     queryFn: async (): Promise<any> => {
       const { data } = await supabase.from("service_orders")
         .select("status, total_amount, created_at, technician_name");
+      return data ?? [];
+    },
+  });
+
+  const { data: expensesRaw = [] } = useQuery({
+    queryKey: ["reports-expenses"],
+    queryFn: async (): Promise<any> => {
+      const { data } = await supabase.from("expenses").select("expense_date, amount");
       return data ?? [];
     },
   });
@@ -50,6 +62,12 @@ export default function Reports() {
 
   const now = new Date();
   const filterByDate = (dateStr: string) => {
+    if (filterStartDate || filterEndDate) {
+      const dStr = dateStr.split("T")[0];
+      if (filterStartDate && dStr < filterStartDate) return false;
+      if (filterEndDate && dStr > filterEndDate) return false;
+      return true;
+    }
     if (filterDate === "all") return true;
     const d = new Date(dateStr);
     if (filterDate === "this_week") return isSameWeek(d, now);
@@ -59,17 +77,27 @@ export default function Reports() {
   };
 
   const ordersData = ordersDataRaw.filter((o: any) => filterByDate(o.created_at));
+  const expensesData = expensesRaw.filter((e: any) => filterByDate(e.expense_date));
   const customersData = customersDataRaw.filter((c: any) => filterByDate(c.created_at));
 
-  // Revenue by month
-  const revenueByMonth: Record<string, number> = {};
+  // Financials by month (Revenue & Expenses)
+  const financialsByMonth: Record<string, { revenue: number, expenses: number }> = {};
+  
   ordersData.forEach((o: any) => {
     if (o.status === "completed" || o.status === "delivered") {
       const month = new Date(o.created_at).toLocaleString("default", { month: "short", year: "2-digit" });
-      revenueByMonth[month] = (revenueByMonth[month] ?? 0) + (o.total_amount ?? 0);
+      if (!financialsByMonth[month]) financialsByMonth[month] = { revenue: 0, expenses: 0 };
+      financialsByMonth[month].revenue += (o.total_amount ?? 0);
     }
   });
-  const revenueChartData = Object.entries(revenueByMonth).map(([month, revenue]) => ({ month, revenue }));
+
+  expensesData.forEach((e: any) => {
+    const month = new Date(e.expense_date).toLocaleString("default", { month: "short", year: "2-digit" });
+    if (!financialsByMonth[month]) financialsByMonth[month] = { revenue: 0, expenses: 0 };
+    financialsByMonth[month].expenses += (e.amount ?? 0);
+  });
+  
+  const revenueChartData = Object.entries(financialsByMonth).map(([month, data]) => ({ month, revenue: data.revenue, expenses: data.expenses }));
 
   // Status breakdown
   const statusCounts: Record<string, number> = {};
@@ -92,6 +120,8 @@ export default function Reports() {
   const customerChartData = Object.entries(customersPerMonth).map(([month, count]) => ({ month, count }));
 
   const totalRevenue = ordersData.filter((o: any) => o.status === "completed" || o.status === "delivered").reduce((s: any, o: any) => s + (o.total_amount ?? 0), 0);
+  const totalExpenses = expensesData.reduce((s: any, e: any) => s + (e.amount ?? 0), 0);
+  const netProfit = totalRevenue - totalExpenses;
   const totalOrders = ordersData.length;
   const avgOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
 
@@ -136,6 +166,23 @@ export default function Reports() {
           <p className="text-sm text-muted-foreground mt-1">Business performance overview</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-1">
+            <Input 
+              type="date" 
+              value={filterStartDate} 
+              onChange={(e) => setFilterStartDate(e.target.value)}
+              className="w-[130px]"
+              title="Start Date"
+            />
+            <span className="text-muted-foreground">-</span>
+            <Input 
+              type="date" 
+              value={filterEndDate} 
+              onChange={(e) => setFilterEndDate(e.target.value)}
+              className="w-[130px]"
+              title="End Date"
+            />
+          </div>
           <Select value={filterDate} onValueChange={setFilterDate}>
             <SelectTrigger className="w-[140px]">
               <SelectValue placeholder="Time Period" />
@@ -187,23 +234,40 @@ export default function Reports() {
               <h1 className="text-3xl font-black text-slate-900 tracking-tight uppercase">Performance Report</h1>
               <p className="text-sm text-slate-500 font-mono mt-2">Generated: {new Date().toLocaleDateString()}</p>
               <p className="text-sm text-slate-500 font-mono mt-1">
-                Period: {filterDate === 'all' ? 'All Time' : filterDate.replace('_', ' ').replace(/\b\w/g, (l: any) => l.toUpperCase())}
+                Period: {filterStartDate || filterEndDate ? `${filterStartDate || 'Start'} to ${filterEndDate || 'End'}` : filterDate === 'all' ? 'All Time' : filterDate.replace('_', ' ').replace(/\b\w/g, (l: any) => l.toUpperCase())}
               </p>
             </div>
           </div>
 
           {/* Summary */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
             {[
-              { label: "Total Revenue", value: formatCurrency(totalRevenue), color: "text-emerald-500" },
-              { label: "Total Orders", value: totalOrders, color: "text-blue-500" },
-              { label: "Avg Order Value", value: formatCurrency(avgOrderValue), color: "text-violet-500" },
-              { label: "New Customers", value: customersData.length, color: "text-amber-500" },
+              { label: "Total Revenue", value: formatCurrency(totalRevenue), color: "text-emerald-500", explain: "Sum of all service orders marked 'completed' or 'delivered' within the selected date range." },
+              { label: "Total Expenses", value: formatCurrency(totalExpenses), color: "text-red-500", explain: "Sum of all logged business expenses within the selected date range." },
+              { label: "Net Profit", value: formatCurrency(netProfit), color: "text-emerald-600", explain: "Calculated by subtracting Total Expenses from Total Revenue." },
+              { label: "Total Orders", value: totalOrders, color: "text-blue-500", explain: "Total number of service orders created within the selected date range, regardless of status." },
+              { label: "Avg Order Value", value: formatCurrency(avgOrderValue), color: "text-violet-500", explain: "Average revenue generated per service order (Total Revenue divided by Total Orders)." },
+              { label: "New Customers", value: customersData.length, color: "text-amber-500", explain: "Total number of new customers registered in the system during the selected date range." },
             ].map((s: any) => (
-              <Card key={s.label} className={cn(exportMode ? "border-slate-200 shadow-none bg-slate-50" : "print:border-slate-200 print:shadow-none bg-card print:bg-slate-50")}>
-                <CardContent className="p-5">
-                  <p className={cn("text-xs uppercase tracking-wider", exportMode ? "text-slate-500" : "text-muted-foreground print:text-slate-500")}>{s.label}</p>
-                  <p className={`text-2xl font-bold mt-2 ${s.color}`}>{s.value}</p>
+              <Card 
+                key={s.label} 
+                className={cn("transition-all h-full", exportMode ? "border-slate-200 shadow-none bg-slate-50" : "print:border-slate-200 print:shadow-none bg-card print:bg-slate-50")}
+                onMouseEnter={() => setHoveredCard(s.label)}
+                onMouseLeave={() => setHoveredCard(null)}
+              >
+                <CardContent className="p-5 h-full flex flex-col justify-between">
+                  <div>
+                    <div className="flex justify-between items-center mb-2">
+                      <p className={cn("text-xs uppercase tracking-wider", exportMode ? "text-slate-500" : "text-muted-foreground print:text-slate-500")}>{s.label}</p>
+                      {hoveredCard === s.label && !exportMode && <span className="text-[10px] text-muted-foreground uppercase tracking-wider shrink-0 ml-2">(Info)</span>}
+                    </div>
+                    <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
+                  </div>
+                  {hoveredCard === s.label && !exportMode && (
+                    <p className="text-xs text-muted-foreground mt-3 pt-3 border-t border-border/50 animate-in fade-in duration-300">
+                      {s.explain}
+                    </p>
+                  )}
                 </CardContent>
               </Card>
             ))}
@@ -211,29 +275,56 @@ export default function Reports() {
 
           {/* Revenue + Customers */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
-            <Card className={cn(exportMode ? "border-slate-200 shadow-none break-inside-avoid bg-white" : "print:border-slate-200 print:shadow-none print:break-inside-avoid")}>
-              <CardHeader className="pb-2"><CardTitle className={cn("text-sm", exportMode ? "text-slate-700" : "print:text-slate-700")}>Revenue Timeline</CardTitle></CardHeader>
+            <Card 
+              className={cn("transition-all", exportMode ? "border-slate-200 shadow-none break-inside-avoid bg-white" : "print:border-slate-200 print:shadow-none print:break-inside-avoid")}
+              onMouseEnter={() => setHoveredCard("revenue")}
+              onMouseLeave={() => setHoveredCard(null)}
+            >
+              <CardHeader className="pb-2">
+                <CardTitle className={cn("text-sm", exportMode ? "text-slate-700" : "print:text-slate-700")}>Revenue vs Expenses</CardTitle>
+                {hoveredCard === "revenue" && !exportMode && (
+                  <p className="text-xs text-muted-foreground mt-1 animate-in fade-in slide-in-from-top-1 duration-300">
+                    Displays total revenue vs expenses each month. Revenue is from completed/delivered orders, while expenses are pulled from the expenses registry.
+                  </p>
+                )}
+              </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={220}>
-                  <AreaChart data={revenueChartData.length > 0 ? revenueChartData : [{ month: "No data", revenue: 0 }]}>
+                  <AreaChart data={revenueChartData.length > 0 ? revenueChartData : [{ month: "No data", revenue: 0, expenses: 0 }]}>
                     <defs>
                       <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
                         <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
                       </linearGradient>
+                      <linearGradient id="expGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#ef4444" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
+                      </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                     <XAxis dataKey="month" tick={{ fontSize: 11, fill: "#64748b" }} axisLine={false} tickLine={false} />
                     <YAxis tick={{ fontSize: 11, fill: "#64748b" }} axisLine={false} tickLine={false} tickFormatter={(v) => `₦${(v / 1000).toFixed(0)}k`} />
-                    <Tooltip contentStyle={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: "8px", color: "#000" }} formatter={(v: number) => [formatCurrency(v), "Revenue"]} />
+                    <Tooltip contentStyle={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: "8px", color: "#000" }} formatter={(v: number, name: string) => [formatCurrency(v), name.charAt(0).toUpperCase() + name.slice(1)]} />
                     <Area type="monotone" dataKey="revenue" stroke="#3b82f6" strokeWidth={2} fill="url(#revGrad)" />
+                    <Area type="monotone" dataKey="expenses" stroke="#ef4444" strokeWidth={2} fill="url(#expGrad)" />
                   </AreaChart>
                 </ResponsiveContainer>
               </CardContent>
             </Card>
 
-            <Card className={cn(exportMode ? "border-slate-200 shadow-none break-inside-avoid bg-white" : "print:border-slate-200 print:shadow-none print:break-inside-avoid")}>
-              <CardHeader className="pb-2"><CardTitle className={cn("text-sm", exportMode ? "text-slate-700" : "print:text-slate-700")}>New Customers</CardTitle></CardHeader>
+            <Card 
+              className={cn("transition-all", exportMode ? "border-slate-200 shadow-none break-inside-avoid bg-white" : "print:border-slate-200 print:shadow-none print:break-inside-avoid")}
+              onMouseEnter={() => setHoveredCard("customers")}
+              onMouseLeave={() => setHoveredCard(null)}
+            >
+              <CardHeader className="pb-2">
+                <CardTitle className={cn("text-sm", exportMode ? "text-slate-700" : "print:text-slate-700")}>New Customers</CardTitle>
+                {hoveredCard === "customers" && !exportMode && (
+                  <p className="text-xs text-muted-foreground mt-1 animate-in fade-in slide-in-from-top-1 duration-300">
+                    Shows the number of new customers added to the system each month based on their registration date.
+                  </p>
+                )}
+              </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={220}>
                   <BarChart data={customerChartData.length > 0 ? customerChartData : [{ month: "No data", count: 0 }]}>
@@ -250,8 +341,19 @@ export default function Reports() {
 
           {/* Status + Inventory */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <Card className={cn(exportMode ? "border-slate-200 shadow-none break-inside-avoid bg-white" : "print:border-slate-200 print:shadow-none print:break-inside-avoid")}>
-              <CardHeader className="pb-2"><CardTitle className={cn("text-sm", exportMode ? "text-slate-700" : "print:text-slate-700")}>Order Status Breakdown</CardTitle></CardHeader>
+            <Card 
+              className={cn("transition-all", exportMode ? "border-slate-200 shadow-none break-inside-avoid bg-white" : "print:border-slate-200 print:shadow-none print:break-inside-avoid")}
+              onMouseEnter={() => setHoveredCard("status")}
+              onMouseLeave={() => setHoveredCard(null)}
+            >
+              <CardHeader className="pb-2">
+                <CardTitle className={cn("text-sm", exportMode ? "text-slate-700" : "print:text-slate-700")}>Order Status Breakdown</CardTitle>
+                {hoveredCard === "status" && !exportMode && (
+                  <p className="text-xs text-muted-foreground mt-1 animate-in fade-in slide-in-from-top-1 duration-300">
+                    Shows the distribution of service orders by their current status. This represents all service orders recorded in the system for the selected period.
+                  </p>
+                )}
+              </CardHeader>
               <CardContent className="flex items-center gap-6">
                 <ResponsiveContainer width="40%" height={160}>
                   <PieChart>
@@ -273,8 +375,19 @@ export default function Reports() {
               </CardContent>
             </Card>
 
-            <Card className={cn(exportMode ? "border-slate-200 shadow-none break-inside-avoid bg-white" : "print:border-slate-200 print:shadow-none print:break-inside-avoid")}>
-              <CardHeader className="pb-2"><CardTitle className={cn("text-sm", exportMode ? "text-slate-700" : "print:text-slate-700")}>Inventory Value by Brand (₦)</CardTitle></CardHeader>
+            <Card 
+              className={cn("transition-all", exportMode ? "border-slate-200 shadow-none break-inside-avoid bg-white" : "print:border-slate-200 print:shadow-none print:break-inside-avoid")}
+              onMouseEnter={() => setHoveredCard("inventory")}
+              onMouseLeave={() => setHoveredCard(null)}
+            >
+              <CardHeader className="pb-2">
+                <CardTitle className={cn("text-sm", exportMode ? "text-slate-700" : "print:text-slate-700")}>Inventory Value by Brand (₦)</CardTitle>
+                {hoveredCard === "inventory" && !exportMode && (
+                  <p className="text-xs text-muted-foreground mt-1 animate-in fade-in slide-in-from-top-1 duration-300">
+                    Displays the total potential value of your current stock, grouped by product brand. Calculated as Stock Quantity × Unit Cost.
+                  </p>
+                )}
+              </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={160}>
                   <BarChart data={brandData.length > 0 ? brandData : [{ brand: "No data", value: 0 }]} layout="vertical">

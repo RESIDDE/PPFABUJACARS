@@ -53,6 +53,8 @@ export default function Vehicles() {
   const [filterMake, setFilterMake] = useState("all");
   const [filterLocation, setFilterLocation] = useState("all");
   const [filterDate, setFilterDate] = useState("all");
+  const [filterStartDate, setFilterStartDate] = useState("");
+  const [filterEndDate, setFilterEndDate] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [page, setPage] = useState(1);
@@ -93,7 +95,14 @@ export default function Vehicles() {
       filtered = filtered.filter((v: any) => v.parking_location === filterLocation);
     }
 
-    if (filterDate !== "all") {
+    if (filterStartDate || filterEndDate) {
+      filtered = filtered.filter((v: any) => {
+        const dStr = v.created_at.split("T")[0];
+        if (filterStartDate && dStr < filterStartDate) return false;
+        if (filterEndDate && dStr > filterEndDate) return false;
+        return true;
+      });
+    } else if (filterDate !== "all") {
       const now = new Date();
       filtered = filtered.filter((v: any) => {
         const d = new Date(v.created_at);
@@ -251,6 +260,11 @@ export default function Vehicles() {
           <Input placeholder="Search by customer, make, model, plate, VIN..." className="pl-9" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} />
         </div>
         <div className="flex flex-wrap gap-2">
+          <div className="flex items-center gap-1">
+            <Input type="date" value={filterStartDate} onChange={(e) => { setFilterStartDate(e.target.value); setPage(1); }} className="w-[130px]" title="Start Date" />
+            <span className="text-muted-foreground">-</span>
+            <Input type="date" value={filterEndDate} onChange={(e) => { setFilterEndDate(e.target.value); setPage(1); }} className="w-[130px]" title="End Date" />
+          </div>
           <Select value={filterDate} onValueChange={(v) => { setFilterDate(v); setPage(1); }}>
             <SelectTrigger className="w-[140px]"><SelectValue placeholder="Time Period" /></SelectTrigger>
             <SelectContent>

@@ -45,11 +45,12 @@ export default function Inventory() {
   const [isCustomBrand, setIsCustomBrand] = useState(false);
   const [historyDialogOpen, setHistoryDialogOpen] = useState(false);
   const [selectedHistoryProduct, setSelectedHistoryProduct] = useState<any>(null);
-  const [historyDateFilter, setHistoryDateFilter] = useState("");
+  const [historyStartDate, setHistoryStartDate] = useState("");
+  const [historyEndDate, setHistoryEndDate] = useState("");
   const qc = useQueryClient();
 
   const { data: productHistory = [], isLoading: historyLoading } = useQuery({
-    queryKey: ["product-history", selectedHistoryProduct?.id, historyDateFilter],
+    queryKey: ["product-history", selectedHistoryProduct?.id, historyStartDate, historyEndDate],
     queryFn: async (): Promise<any[]> => {
       if (!selectedHistoryProduct) return [];
       let q = supabase
@@ -76,8 +77,11 @@ export default function Inventory() {
         .eq("ppf_product_id", selectedHistoryProduct.id)
         .order("created_at", { ascending: false });
 
-      if (historyDateFilter) {
-        q = q.eq("service_orders.intake_date", historyDateFilter);
+      if (historyStartDate) {
+        q = q.gte("service_orders.intake_date", historyStartDate);
+      }
+      if (historyEndDate) {
+        q = q.lte("service_orders.intake_date", historyEndDate);
       }
 
       const { data } = await q;
@@ -160,7 +164,8 @@ export default function Inventory() {
 
   const openHistory = (p: any) => {
     setSelectedHistoryProduct(p);
-    setHistoryDateFilter("");
+    setHistoryStartDate("");
+    setHistoryEndDate("");
     setHistoryDialogOpen(true);
   };
 
@@ -244,7 +249,7 @@ export default function Inventory() {
                   <p class="meta-label">Product Details</p>
                   <p class="meta-value">Brand: <span>${selectedHistoryProduct?.brand}</span></p>
                   <p class="meta-value">Name: <span>${selectedHistoryProduct?.name}</span></p>
-                  ${historyDateFilter ? `<p class="meta-value mt-2">Filtered Date: <span>${historyDateFilter}</span></p>` : ''}
+                  ${historyStartDate || historyEndDate ? `<p class="meta-value mt-2">Period: <span>${historyStartDate || 'Beginning'} to ${historyEndDate || 'Present'}</span></p>` : ''}
                 </div>
                 <div class="meta-section" style="text-align: right;">
                   <p class="meta-label">Generated On</p>
@@ -500,12 +505,23 @@ export default function Inventory() {
                 <p className="text-sm text-muted-foreground mt-1 font-medium">{selectedHistoryProduct?.brand} {selectedHistoryProduct?.name}</p>
               </div>
               <div className="flex items-center gap-3 pr-6">
-                <Input 
-                  type="date" 
-                  value={historyDateFilter} 
-                  onChange={(e) => setHistoryDateFilter(e.target.value)}
-                  className="h-9 text-sm"
-                />
+                <div className="flex items-center gap-1">
+                  <Input 
+                    type="date" 
+                    value={historyStartDate} 
+                    onChange={(e) => setHistoryStartDate(e.target.value)}
+                    className="h-9 text-xs w-[130px]"
+                    title="Start Date"
+                  />
+                  <span className="text-muted-foreground text-xs">-</span>
+                  <Input 
+                    type="date" 
+                    value={historyEndDate} 
+                    onChange={(e) => setHistoryEndDate(e.target.value)}
+                    className="h-9 text-xs w-[130px]"
+                    title="End Date"
+                  />
+                </div>
                 <Button size="sm" onClick={handlePrint} className="gap-2">
                   <Printer className="h-4 w-4" /> Print Record
                 </Button>

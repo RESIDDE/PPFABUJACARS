@@ -35,6 +35,8 @@ export default function Invoices() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [dateFilter, setDateFilter] = useState("all");
+  const [filterStartDate, setFilterStartDate] = useState("");
+  const [filterEndDate, setFilterEndDate] = useState("");
   const [page, setPage] = useState(1);
   const [payDialogOpen, setPayDialogOpen] = useState(false);
   const [payInvoiceId, setPayInvoiceId] = useState<string | null>(null);
@@ -42,19 +44,26 @@ export default function Invoices() {
   const qc = useQueryClient();
 
   const { data: invoices = [], isLoading } = useQuery({
-    queryKey: ["invoices", search, statusFilter, dateFilter],
+    queryKey: ["invoices", search, statusFilter, dateFilter, filterStartDate, filterEndDate],
     queryFn: async (): Promise<any> => {
       let q = supabase.from("invoices")
         .select("*, customers(full_name, phone), service_orders(order_number, total_amount)")
         .order("created_at", { ascending: false });
       if (statusFilter !== "all") q = q.eq("status", statusFilter as InvoiceStatus);
       if (search) q = q.ilike("invoice_number", `%${search}%`);
-      if (dateFilter === "week") {
-        const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-        q = q.gte("created_at", weekAgo);
-      } else if (dateFilter === "month") {
-        const monthAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-        q = q.gte("created_at", monthAgo);
+      if (filterStartDate) {
+        q = q.gte("created_at", filterStartDate);
+      }
+      if (filterEndDate) {
+        q = q.lte("created_at", filterEndDate + "T23:59:59.999Z");
+      } else if (!filterStartDate) {
+        if (dateFilter === "week") {
+          const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+          q = q.gte("created_at", weekAgo);
+        } else if (dateFilter === "month") {
+          const monthAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+          q = q.gte("created_at", monthAgo);
+        }
       }
       const { data } = await q;
       return data ?? [];
@@ -109,6 +118,11 @@ export default function Invoices() {
           <Input placeholder="Search invoice #..." className="pl-9 w-56" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} />
         </div>
         <div className="flex gap-2 flex-wrap items-center">
+          <div className="flex items-center gap-1">
+            <Input type="date" value={filterStartDate} onChange={(e) => { setFilterStartDate(e.target.value); setPage(1); }} className="h-[34px] text-xs w-[130px]" title="Start Date" />
+            <span className="text-muted-foreground">-</span>
+            <Input type="date" value={filterEndDate} onChange={(e) => { setFilterEndDate(e.target.value); setPage(1); }} className="h-[34px] text-xs w-[130px]" title="End Date" />
+          </div>
           <Select value={dateFilter} onValueChange={(v) => { setDateFilter(v); setPage(1); }}>
             <SelectTrigger className="w-[140px] h-[34px] text-xs">
               <SelectValue placeholder="Date" />
