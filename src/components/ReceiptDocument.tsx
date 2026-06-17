@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { formatCurrency, formatDate, downloadFile } from "@/lib/utils";
 import { Printer, Image as ImageIcon, Loader2, FileText } from "lucide-react";
 // @ts-ignore
 import html2canvas from "html2canvas";
@@ -170,10 +170,7 @@ export default function ReceiptDocument({ invoiceId, onClose, hideHeader }: { in
         document.documentElement.classList.add("dark");
       }
 
-      const link = document.createElement("a");
-      link.download = `Receipt-${invoice?.invoice_number}.png`;
-      link.href = canvas.toDataURL("image/png");
-      link.click();
+      await downloadFile(canvas.toDataURL("image/png"), `Receipt-${invoice?.invoice_number}.png`);
     } catch (error) {
       console.error("Failed to generate PNG", error);
       alert("Failed to download PNG. Please try again.");
@@ -211,7 +208,7 @@ export default function ReceiptDocument({ invoiceId, onClose, hideHeader }: { in
       const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
       
       pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
-      pdf.save(`Receipt-${invoice?.invoice_number}.pdf`);
+      await downloadFile(pdf.output("blob"), `Receipt-${invoice?.invoice_number}.pdf`);
     } catch (error) {
       console.error("Failed to generate PDF", error);
       alert("Failed to download PDF. Please try again.");

@@ -6,6 +6,7 @@ import InvoiceDocument from "./InvoiceDocument";
 import html2canvas from "html2canvas";
 // @ts-ignore
 import { jsPDF } from "jspdf";
+import { downloadFile } from "@/lib/utils";
 
 // Extracts all loaded CSS rules (including Vite-injected Tailwind) from the current document
 function extractAllCss(): string {
@@ -156,7 +157,7 @@ ${pagesHtml}
         document.documentElement.classList.add("dark");
       }
 
-      pdf.save("Customer-Invoices-Batch.pdf");
+      await downloadFile(pdf.output("blob"), "Customer-Invoices-Batch.pdf");
     } catch (error) {
       console.error("Failed to generate PDF", error);
       alert("Failed to download PDF. Please try again.");
