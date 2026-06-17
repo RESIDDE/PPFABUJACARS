@@ -31,6 +31,10 @@ type FormData = z.infer<typeof schema>;
 
 const PPF_BRANDS = ["XPEL", "3M", "SunTek", "LLumar", "Avery Dennison", "STEK", "Hexis", "Other"];
 const UNITS = ["meter", "sqft", "roll", "piece"];
+const MONTHS = [
+  "January", "February", "March", "April", "May", "June", 
+  "July", "August", "September", "October", "November", "December"
+];
 
 export default function Inventory() {
   const [search, setSearch] = useState("");
@@ -66,11 +70,13 @@ export default function Inventory() {
             customers (
               full_name
             ),
-            vehicles (
-              make,
-              model,
-              plate_number,
-              vin
+            service_order_vehicles (
+              vehicles (
+                make,
+                model,
+                plate_number,
+                vin
+              )
             )
           )
         `)
@@ -167,6 +173,29 @@ export default function Inventory() {
     setHistoryStartDate("");
     setHistoryEndDate("");
     setHistoryDialogOpen(true);
+  };
+
+  const handleMonthSelect = (monthStr: string) => {
+    if (monthStr === "all") {
+      setHistoryStartDate("");
+      setHistoryEndDate("");
+      return;
+    }
+    
+    const month = parseInt(monthStr, 10);
+    const year = new Date().getFullYear();
+    const startDate = new Date(year, month, 1);
+    const endDate = new Date(year, month + 1, 0); // last day of the month
+
+    const formatYMD = (d: Date) => {
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      return `${y}-${m}-${day}`;
+    };
+
+    setHistoryStartDate(formatYMD(startDate));
+    setHistoryEndDate(formatYMD(endDate));
   };
 
   const handlePrint = () => {
@@ -270,19 +299,21 @@ export default function Inventory() {
                   </tr>
                 </thead>
                 <tbody>
-                  ${productHistory.map(h => `
+                  ${productHistory.map(h => {
+                    const v = h.service_orders?.service_order_vehicles?.[0]?.vehicles;
+                    return `
                     <tr>
                       <td>${formatDate(h.service_orders?.intake_date || h.created_at)}</td>
                       <td class="font-mono">${h.service_orders?.order_number}</td>
                       <td>${h.service_orders?.customers?.full_name || 'Unknown'}</td>
                       <td>
-                        <strong>${h.service_orders?.vehicles?.make} ${h.service_orders?.vehicles?.model}</strong>
-                        <span class="vehicle-plate">(${h.service_orders?.vehicles?.plate_number || 'No Plate'})</span>
-                        ${h.service_orders?.vehicles?.vin ? `<br/><span style="font-size: 10px; color: #94a3b8; font-family: monospace;">VIN: ${h.service_orders.vehicles.vin}</span>` : ''}
+                        <strong>${v?.make || 'Unknown'} ${v?.model || ''}</strong>
+                        <span class="vehicle-plate">(${v?.plate_number || 'No Plate'})</span>
+                        ${v?.vin ? `<br/><span style="font-size: 10px; color: #94a3b8; font-family: monospace;">VIN: ${v.vin}</span>` : ''}
                       </td>
                       <td class="right" style="font-weight: 600;">${h.quantity_used} ${selectedHistoryProduct?.unit}</td>
                     </tr>
-                  `).join('')}
+                  `}).join('')}
                   ${productHistory.length === 0 ? `<tr><td colspan="5" style="text-align: center; padding: 40px; color: #94a3b8;">No usage records found for this product.</td></tr>` : ''}
                 </tbody>
               </table>
@@ -505,22 +536,36 @@ export default function Inventory() {
                 <p className="text-sm text-muted-foreground mt-1 font-medium">{selectedHistoryProduct?.brand} {selectedHistoryProduct?.name}</p>
               </div>
               <div className="flex items-center gap-3 pr-6">
-                <div className="flex items-center gap-1">
-                  <Input 
-                    type="date" 
-                    value={historyStartDate} 
-                    onChange={(e) => setHistoryStartDate(e.target.value)}
-                    className="h-9 text-xs w-[130px]"
-                    title="Start Date"
-                  />
-                  <span className="text-muted-foreground text-xs">-</span>
-                  <Input 
-                    type="date" 
-                    value={historyEndDate} 
-                    onChange={(e) => setHistoryEndDate(e.target.value)}
-                    className="h-9 text-xs w-[130px]"
-                    title="End Date"
-                  />
+                <div className="flex items-center gap-2">
+                  <Select onValueChange={handleMonthSelect}>
+                    <SelectTrigger className="h-9 text-xs w-[120px]">
+                      <SelectValue placeholder="Filter Month..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Time</SelectItem>
+                      {MONTHS.map((m, i) => (
+                        <SelectItem key={m} value={i.toString()}>{m}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  <div className="flex items-center gap-1 border-l border-border pl-2">
+                    <Input 
+                      type="date" 
+                      value={historyStartDate} 
+                      onChange={(e) => setHistoryStartDate(e.target.value)}
+                      className="h-9 text-xs w-[130px]"
+                      title="Start Date"
+                    />
+                    <span className="text-muted-foreground text-xs">-</span>
+                    <Input 
+                      type="date" 
+                      value={historyEndDate} 
+                      onChange={(e) => setHistoryEndDate(e.target.value)}
+                      className="h-9 text-xs w-[130px]"
+                      title="End Date"
+                    />
+                  </div>
                 </div>
                 <Button size="sm" onClick={handlePrint} className="gap-2">
                   <Printer className="h-4 w-4" /> Print Record
@@ -549,25 +594,27 @@ export default function Inventory() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
-                    {productHistory.map((h: any) => (
+                    {productHistory.map((h: any) => {
+                      const v = h.service_orders?.service_order_vehicles?.[0]?.vehicles;
+                      return (
                       <tr key={h.id}>
                         <td className="py-2.5">{formatDate(h.service_orders?.intake_date || h.created_at)}</td>
                         <td className="py-2.5 font-mono text-xs text-primary">{h.service_orders?.order_number}</td>
                         <td className="py-2.5 font-medium">{h.service_orders?.customers?.full_name || "Unknown"}</td>
                         <td className="py-2.5">
-                          <span className="font-medium">{h.service_orders?.vehicles?.make} {h.service_orders?.vehicles?.model}</span>
+                          <span className="font-medium">{v?.make || 'Unknown'} {v?.model || ''}</span>
                           <span className="text-xs text-muted-foreground ml-2">
-                            ({h.service_orders?.vehicles?.plate_number || "No Plate"})
+                            ({v?.plate_number || "No Plate"})
                           </span>
-                          {h.service_orders?.vehicles?.vin && (
+                          {v?.vin && (
                             <div className="text-[10px] text-muted-foreground/70 font-mono mt-0.5">
-                              VIN: {h.service_orders.vehicles.vin}
+                              VIN: {v.vin}
                             </div>
                           )}
                         </td>
                         <td className="py-2.5 text-right font-medium">{h.quantity_used} {selectedHistoryProduct?.unit}</td>
                       </tr>
-                    ))}
+                    )})}
                   </tbody>
                 </table>
               </div>
