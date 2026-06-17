@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Printer, Image as ImageIcon, Loader2 } from "lucide-react";
+import { Printer, Image as ImageIcon, Loader2, FileText } from "lucide-react";
 import InvoiceDocument from "./InvoiceDocument";
 // @ts-ignore
 import html2canvas from "html2canvas";
@@ -177,7 +177,7 @@ ${pagesHtml}
         </div>
         <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
           <Button variant="outline" onClick={handleDownloadPdf} disabled={downloading} className="flex-1 sm:flex-none whitespace-nowrap">
-            {downloading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <ImageIcon className="h-4 w-4 mr-2" />}
+            {downloading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <FileText className="h-4 w-4 mr-2" />}
             Save as PDF
           </Button>
           <Button onClick={handlePrint} className="flex-1 sm:flex-none whitespace-nowrap">

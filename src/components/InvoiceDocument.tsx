@@ -3,9 +3,10 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import { Printer, Image as ImageIcon, Loader2 } from "lucide-react";
+import { Printer, Image as ImageIcon, Loader2, FileText } from "lucide-react";
 // @ts-ignore
 import html2canvas from "html2canvas";
+import { jsPDF } from "jspdf";
 
 // ─── Amount to Words ──────────────────────────────────────────────────────────
 const ones = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine",
@@ -54,7 +55,7 @@ function extractAllCss(): string {
 
 export default function InvoiceDocument({ invoiceId, onClose, hideHeader }: { invoiceId: string; onClose?: () => void; hideHeader?: boolean }) {
   const invoiceRef = useRef<HTMLDivElement>(null);
-  const [downloading, setDownloading] = useState(false);
+  const [downloadingType, setDownloadingType] = useState<"png" | "pdf" | null>(null);
 
   const { data: invoice, isLoading } = useQuery({
     queryKey: ["invoice-detail", invoiceId],
@@ -152,7 +153,7 @@ export default function InvoiceDocument({ invoiceId, onClose, hideHeader }: { in
   const handleDownloadPng = async () => {
     if (!invoiceRef.current) return;
     try {
-      setDownloading(true);
+      setDownloadingType("png");
       
       // Temporarily remove dark mode for the screenshot
       const isDark = document.documentElement.classList.contains("dark");
@@ -177,7 +178,45 @@ export default function InvoiceDocument({ invoiceId, onClose, hideHeader }: { in
       console.error("Failed to generate PNG", error);
       alert("Failed to download PNG. Please try again.");
     } finally {
-      setDownloading(false);
+      setDownloadingType(null);
+    }
+  };
+
+  // ── Download PDF ──────────────────────────────────────────────────────────
+  const handleDownloadPdf = async () => {
+    if (!invoiceRef.current) return;
+    try {
+      setDownloadingType("pdf");
+      
+      const isDark = document.documentElement.classList.contains("dark");
+      if (isDark) {
+        document.documentElement.classList.remove("dark");
+        await new Promise(resolve => setTimeout(resolve, 50));
+      }
+
+      const canvas = await html2canvas(invoiceRef.current, { scale: 2, useCORS: true, windowWidth: 1024 });
+      
+      if (isDark) {
+        document.documentElement.classList.add("dark");
+      }
+
+      const imgData = canvas.toDataURL("image/png");
+      const pdf = new jsPDF({
+        orientation: "portrait",
+        unit: "mm",
+        format: "a4",
+      });
+      
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+      
+      pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
+      pdf.save(`Invoice-${invoice?.invoice_number}.pdf`);
+    } catch (error) {
+      console.error("Failed to generate PDF", error);
+      alert("Failed to download PDF. Please try again.");
+    } finally {
+      setDownloadingType(null);
     }
   };
 
@@ -204,8 +243,12 @@ export default function InvoiceDocument({ invoiceId, onClose, hideHeader }: { in
             <p className="text-sm text-muted-foreground">Print to PDF or Download as PNG</p>
           </div>
           <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-            <Button variant="outline" onClick={handleDownloadPng} disabled={downloading} className="flex-1 sm:flex-none whitespace-nowrap">
-              {downloading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <ImageIcon className="h-4 w-4 mr-2" />}
+            <Button variant="outline" onClick={handleDownloadPdf} disabled={!!downloadingType} className="flex-1 sm:flex-none whitespace-nowrap">
+              {downloadingType === "pdf" ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <FileText className="h-4 w-4 mr-2" />}
+              Save PDF
+            </Button>
+            <Button variant="outline" onClick={handleDownloadPng} disabled={!!downloadingType} className="flex-1 sm:flex-none whitespace-nowrap">
+              {downloadingType === "png" ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <ImageIcon className="h-4 w-4 mr-2" />}
               Save PNG
             </Button>
             <Button onClick={handlePrint} className="flex-1 sm:flex-none whitespace-nowrap">
@@ -275,11 +318,15 @@ export default function InvoiceDocument({ invoiceId, onClose, hideHeader }: { in
                 {vehicles.length > 0 && (
                   <div className="col-span-2 mt-1">
                     <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Vehicles</p>
-                    <div className="space-y-1.5 max-h-24 overflow-y-hidden">
+                    <div className="space-y-1.5">
                       {vehicles.map((v: any) => (
                         <div key={v.id} className="leading-tight">
                           <p className="font-medium text-xs">{v.make} {v.model} {v.year ? `(${v.year})` : ""}</p>
-                          <p className="text-[10px] text-muted-foreground">Plate: {v.plate_number || "N/A"}{v.color ? ` · ${v.color}` : ""} {v.vin ? `· VIN: ${v.vin}` : ""}</p>
+                          <div className="text-[10px] text-foreground mt-1 space-y-0.5">
+                            <p><span className="text-muted-foreground font-medium">Plate:</span> {v.plate_number || "N/A"}</p>
+                            <p><span className="text-muted-foreground font-medium">VIN:</span> {v.vin || "N/A"}</p>
+                            {v.color && <p><span className="text-muted-foreground font-medium">Color:</span> {v.color}</p>}
+                          </div>
                         </div>
                       ))}
                     </div>

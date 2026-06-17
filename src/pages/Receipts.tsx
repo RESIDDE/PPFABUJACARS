@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { formatDate, formatCurrency } from "@/lib/utils";
+import { formatDate, formatDateTime, formatCurrency } from "@/lib/utils";
 import ReceiptDocument from "@/components/ReceiptDocument";
 import { Pagination } from "@/components/ui/pagination";
 
@@ -25,7 +25,7 @@ export default function Receipts() {
     queryKey: ["receipts", search, dateFilter, filterStartDate, filterEndDate],
     queryFn: async (): Promise<any> => {
       let q = supabase.from("invoices")
-        .select("*, customers(full_name, phone), service_orders(order_number, total_amount)")
+        .select("*, customers(full_name, phone), service_orders(order_number, total_amount, service_order_vehicles(vehicles(make, model)))")
         .eq("status", "paid")
         .order("payment_date", { ascending: false }); // Sort by payment date
 
@@ -113,7 +113,7 @@ export default function Receipts() {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-border">
-                  {["Receipt #", "Customer", "Order #", "Amount Paid", "Method", "Date Paid", ""].map((h: any) => (
+                  {["Receipt #", "Customer", "Vehicle", "Order #", "Amount Paid", "Method", "Date Paid", ""].map((h: any) => (
                     <th key={h} className="text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider px-5 py-3">{h}</th>
                   ))}
                 </tr>
@@ -121,16 +121,20 @@ export default function Receipts() {
               <tbody className="divide-y divide-border">
                 {receipts.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map((receipt: any) => {
                   const customer = receipt.customers as { full_name: string } | null;
-                  const serviceOrder = receipt.service_orders as { order_number: string } | null;
+                  const serviceOrder = receipt.service_orders as any;
+                  const vehiclesList = serviceOrder?.service_order_vehicles?.map((sov: any) => sov.vehicles).filter(Boolean) || [];
+                  const vehicleName = vehiclesList.length > 0 ? `${vehiclesList[0].make} ${vehiclesList[0].model}` : "—";
+                  
                   return (
                     <tr key={receipt.id} className="hover:bg-muted/30 transition-colors">
                       <td className="px-5 py-3.5 text-sm font-mono font-medium text-primary">RCPT-{receipt.invoice_number}</td>
                       <td className="px-5 py-3.5 text-sm">{customer?.full_name ?? "—"}</td>
+                      <td className="px-5 py-3.5 text-sm truncate max-w-[150px]">{vehicleName}</td>
                       <td className="px-5 py-3.5 text-sm font-mono text-muted-foreground">{serviceOrder?.order_number ?? "—"}</td>
                       <td className="px-5 py-3.5 text-sm font-bold text-emerald-600">{formatCurrency(receipt.amount_paid || 0)}</td>
                       <td className="px-5 py-3.5 text-sm">{receipt.payment_method || "—"}</td>
-                      <td className="px-5 py-3.5 text-sm text-muted-foreground">
-                        {receipt.payment_date ? formatDate(receipt.payment_date) : formatDate(receipt.updated_at)}
+                      <td className="px-5 py-3.5 text-sm text-muted-foreground whitespace-nowrap">
+                        {formatDateTime(receipt.updated_at)}
                       </td>
                       <td className="px-5 py-3.5 text-right">
                         <Button size="sm" variant="secondary" onClick={() => setPreviewInvoiceId(receipt.id)}>

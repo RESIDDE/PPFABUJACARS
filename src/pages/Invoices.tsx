@@ -42,6 +42,7 @@ export default function Invoices() {
   const [payDialogOpen, setPayDialogOpen] = useState(false);
   const [payInvoiceId, setPayInvoiceId] = useState<string | null>(null);
   const [previewInvoiceId, setPreviewInvoiceId] = useState<string | null>(null);
+  const [highlightedOriginalId, setHighlightedOriginalId] = useState<string | null>(null);
   const navigate = useNavigate();
   const qc = useQueryClient();
 
@@ -213,8 +214,17 @@ export default function Invoices() {
                   const isDuplicate = duplicateIndex > 0;
                   const originalInvoice = isDuplicate ? relatedInvoices[0] : null;
                   
+                  const isHighlightedOriginal = inv.id === highlightedOriginalId;
+                  
+                  let rowClass = "hover:bg-muted/30";
+                  if (isHighlightedOriginal) {
+                    rowClass = "bg-emerald-500/20 ring-1 ring-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.3)] z-10 relative";
+                  } else if (isDuplicate) {
+                    rowClass = "bg-amber-500/5 hover:bg-amber-500/10";
+                  }
+
                   return (
-                    <tr key={inv.id} className={`transition-colors ${isDuplicate ? 'bg-amber-500/5 hover:bg-amber-500/10' : 'hover:bg-muted/30'}`}>
+                    <tr key={inv.id} className={`transition-all duration-300 ${rowClass}`}>
                       <td className="px-5 py-3.5 text-sm font-mono font-medium">
                         <div className="flex items-center gap-2">
                           <span className="text-primary">{inv.invoice_number}</span>
@@ -223,6 +233,8 @@ export default function Invoices() {
                               variant="outline" 
                               className="bg-amber-500/10 text-amber-600 border-amber-500/20 text-[9px] px-1.5 py-0 cursor-help"
                               title={`Duplicate of ${originalInvoice?.invoice_number}`}
+                              onMouseEnter={() => setHighlightedOriginalId(originalInvoice?.id)}
+                              onMouseLeave={() => setHighlightedOriginalId(null)}
                             >
                               Duplicate {duplicateIndex}
                             </Badge>
