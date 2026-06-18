@@ -181,9 +181,10 @@ export interface Database {
       expenses: {
         Row: {
           id: string;
-          vehicle_id: string;
+          expense_type: string | null;
+          vehicle_id: string | null;
           expense_date: string;
-          technician_name: string;
+          technician_name: string | null;
           job_description: string;
           amount: number;
           created_at: string;

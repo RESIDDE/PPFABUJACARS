@@ -22,12 +22,25 @@ import html2canvas from "html2canvas";
 const PAGE_SIZE = 10;
 
 const schema = z.object({
-  customer_id: z.string().min(1, "Customer is required"),
-  vehicle_id: z.string().min(1, "Vehicle is required"),
+  expense_type: z.enum(["job", "other"]).default("job"),
+  customer_id: z.string().optional(),
+  vehicle_id: z.string().optional(),
   expense_date: z.string().min(1, "Date is required"),
-  technician_name: z.string().min(1, "Technician name is required"),
+  technician_name: z.string().optional(),
   job_description: z.string().min(1, "Job description is required"),
   amount: z.coerce.number().min(0, "Amount must be positive"),
+}).superRefine((data, ctx) => {
+  if (data.expense_type === "job") {
+    if (!data.customer_id) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Customer is required", path: ["customer_id"] });
+    }
+    if (!data.vehicle_id) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Vehicle is required", path: ["vehicle_id"] });
+    }
+    if (!data.technician_name) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Technician name is required", path: ["technician_name"] });
+    }
+  }
 });
 
 type FormData = z.infer<typeof schema>;
@@ -189,6 +202,7 @@ export default function Expenses() {
   const { register, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: {
+      expense_type: "job",
       expense_date: format(new Date(), "yyyy-MM-dd"),
     }
   });
@@ -196,9 +210,10 @@ export default function Expenses() {
   const mutation = useMutation({
     mutationFn: async (data: FormData) => {
       const payload = { 
-        vehicle_id: data.vehicle_id,
+        expense_type: data.expense_type,
+        vehicle_id: data.expense_type === "job" ? data.vehicle_id : null,
         expense_date: data.expense_date,
-        technician_name: data.technician_name,
+        technician_name: data.expense_type === "job" ? data.technician_name : null,
         job_description: data.job_description,
         amount: data.amount,
       };
@@ -236,6 +251,7 @@ export default function Expenses() {
 
   const openAdd = () => { 
     reset({ 
+      expense_type: "job",
       customer_id: "",
       vehicle_id: "",
       expense_date: format(new Date(), "yyyy-MM-dd"),
@@ -253,10 +269,11 @@ export default function Expenses() {
     const custId = e.vehicles?.customer_id || "";
     setSelectedCustomer(custId);
     reset({ 
+      expense_type: e.expense_type || "job",
       customer_id: custId,
-      vehicle_id: e.vehicle_id,
+      vehicle_id: e.vehicle_id || "",
       expense_date: e.expense_date,
-      technician_name: e.technician_name,
+      technician_name: e.technician_name || "",
       job_description: e.job_description,
       amount: e.amount,
     });
@@ -531,19 +548,28 @@ export default function Expenses() {
                           <CalendarIcon className="h-3.5 w-3.5 opacity-70" />
                           <span>{formatDate(expense.expense_date)}</span>
                         </div>
-                        <span className="font-medium">👤 {expense.technician_name}</span>
+                        <span className="font-medium">{expense.expense_type === 'other' ? '🏢 General' : `👤 ${expense.technician_name}`}</span>
                       </div>
                       <div className="flex flex-col gap-1 pt-1 border-t border-border/50">
-                        <div className="flex items-center gap-1.5">
-                          <Car className="h-3.5 w-3.5 opacity-70" />
-                          <span>
-                            {vehicle ? `${vehicle.make} ${vehicle.model} ${vehicle.plate_number ? `[${vehicle.plate_number}]` : ''}` : 'Unknown Vehicle'}
-                          </span>
-                        </div>
-                        {vehicle?.vin && (
-                          <div className="ml-5 text-[10px] font-mono text-muted-foreground/80 uppercase">
-                            VIN: {vehicle.vin}
+                        {expense.expense_type === 'other' ? (
+                          <div className="flex items-center gap-1.5">
+                            <Receipt className="h-3.5 w-3.5 opacity-70" />
+                            <span>Other Expense</span>
                           </div>
+                        ) : (
+                          <>
+                            <div className="flex items-center gap-1.5">
+                              <Car className="h-3.5 w-3.5 opacity-70" />
+                              <span>
+                                {vehicle ? `${vehicle.make} ${vehicle.model} ${vehicle.plate_number ? `[${vehicle.plate_number}]` : ''}` : 'Unknown Vehicle'}
+                              </span>
+                            </div>
+                            {vehicle?.vin && (
+                              <div className="ml-5 text-[10px] font-mono text-muted-foreground/80 uppercase">
+                                VIN: {vehicle.vin}
+                              </div>
+                            )}
+                          </>
                         )}
                       </div>
                     </div>
@@ -566,51 +592,67 @@ export default function Expenses() {
           </DialogHeader>
           <form onSubmit={handleSubmit((d) => mutation.mutate(d))} className="space-y-4 pt-4">
             
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2">
-                <Label>Customer *</Label>
-                <Select 
-                  onValueChange={(v) => { 
-                    setSelectedCustomer(v); 
-                    setValue("customer_id", v); 
-                    setValue("vehicle_id", ""); 
-                  }} 
-                  value={watch("customer_id") || ""}
-                >
-                  <SelectTrigger><SelectValue placeholder="Select customer..." /></SelectTrigger>
-                  <SelectContent>
-                    {customers.map((c: any) => (
-                      <SelectItem key={c.id} value={c.id}>
-                        {c.full_name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {errors.customer_id && <p className="text-xs text-destructive">{errors.customer_id.message}</p>}
-              </div>
-
-              <div className="space-y-2">
-                <Label>Vehicle *</Label>
-                <Select 
-                  onValueChange={(v) => setValue("vehicle_id", v)} 
-                  value={watch("vehicle_id") || ""}
-                  disabled={!selectedCustomer}
-                >
-                  <SelectTrigger><SelectValue placeholder="Select vehicle..." /></SelectTrigger>
-                  <SelectContent>
-                    {customerVehicles.map((v: any) => (
-                      <SelectItem key={v.id} value={v.id}>
-                        <div className="flex flex-col text-left py-1">
-                          <span>{v.make} {v.model} {v.plate_number ? `· ${v.plate_number}` : ""}</span>
-                          {v.vin && <span className="text-[10px] text-muted-foreground mt-0.5">VIN: {v.vin}</span>}
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {errors.vehicle_id && <p className="text-xs text-destructive">{errors.vehicle_id.message}</p>}
-              </div>
+            <div className="space-y-2">
+              <Label>Expense Type</Label>
+              <Select 
+                onValueChange={(v) => setValue("expense_type", v as "job" | "other")} 
+                value={watch("expense_type") || "job"}
+              >
+                <SelectTrigger><SelectValue placeholder="Select type..." /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="job">Job / Vehicle Expense</SelectItem>
+                  <SelectItem value="other">Other Expense (Rent, Utilities, etc.)</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
+
+            {watch("expense_type") === "job" && (
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label>Customer *</Label>
+                  <Select 
+                    onValueChange={(v) => { 
+                      setSelectedCustomer(v); 
+                      setValue("customer_id", v); 
+                      setValue("vehicle_id", ""); 
+                    }} 
+                    value={watch("customer_id") || ""}
+                  >
+                    <SelectTrigger><SelectValue placeholder="Select customer..." /></SelectTrigger>
+                    <SelectContent>
+                      {customers.map((c: any) => (
+                        <SelectItem key={c.id} value={c.id}>
+                          {c.full_name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {errors.customer_id && <p className="text-xs text-destructive">{errors.customer_id.message}</p>}
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Vehicle *</Label>
+                  <Select 
+                    onValueChange={(v) => setValue("vehicle_id", v)} 
+                    value={watch("vehicle_id") || ""}
+                    disabled={!selectedCustomer}
+                  >
+                    <SelectTrigger><SelectValue placeholder="Select vehicle..." /></SelectTrigger>
+                    <SelectContent>
+                      {customerVehicles.map((v: any) => (
+                        <SelectItem key={v.id} value={v.id}>
+                          <div className="flex flex-col text-left py-1">
+                            <span>{v.make} {v.model} {v.plate_number ? `· ${v.plate_number}` : ""}</span>
+                            {v.vin && <span className="text-[10px] text-muted-foreground mt-0.5">VIN: {v.vin}</span>}
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {errors.vehicle_id && <p className="text-xs text-destructive">{errors.vehicle_id.message}</p>}
+                </div>
+              </div>
+            )}
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
@@ -626,15 +668,23 @@ export default function Expenses() {
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="technician_name">Technician Name *</Label>
-              <Input id="technician_name" placeholder="John Doe" {...register("technician_name")} />
-              {errors.technician_name && <p className="text-xs text-destructive">{errors.technician_name.message}</p>}
-            </div>
+            {watch("expense_type") === "job" && (
+              <div className="space-y-2">
+                <Label htmlFor="technician_name">Technician Name *</Label>
+                <Input id="technician_name" placeholder="John Doe" {...register("technician_name")} />
+                {errors.technician_name && <p className="text-xs text-destructive">{errors.technician_name.message}</p>}
+              </div>
+            )}
 
             <div className="space-y-2">
-              <Label htmlFor="job_description">Job Description *</Label>
-              <Textarea id="job_description" placeholder="Description of the expense or job done..." {...register("job_description")} />
+              <Label htmlFor="job_description">
+                {watch("expense_type") === "job" ? "Job Description *" : "Expense Details *"}
+              </Label>
+              <Textarea 
+                id="job_description" 
+                placeholder={watch("expense_type") === "job" ? "Description of the expense or job done..." : "E.g., Office Rent, Electricity Bill, Cleaning..."} 
+                {...register("job_description")} 
+              />
               {errors.job_description && <p className="text-xs text-destructive">{errors.job_description.message}</p>}
             </div>
 
@@ -734,10 +784,16 @@ export default function Expenses() {
                           return (
                             <tr key={expense.id} className="align-top">
                               <td className="py-2.5 whitespace-nowrap">{formatDate(expense.expense_date)}</td>
-                              <td className="py-2.5 truncate max-w-[100px]">{expense.technician_name}</td>
+                              <td className="py-2.5 truncate max-w-[100px]">{expense.expense_type === 'other' ? 'General' : expense.technician_name}</td>
                               <td className="py-2.5">
-                                <div className="font-medium">{vehicle ? `${vehicle.make} ${vehicle.model}` : 'N/A'}</div>
-                                <div className="text-[10px] text-muted-foreground">{vehicle?.plate_number || ''}</div>
+                                {expense.expense_type === 'other' ? (
+                                  <div className="font-medium">Other Expense</div>
+                                ) : (
+                                  <>
+                                    <div className="font-medium">{vehicle ? `${vehicle.make} ${vehicle.model}` : 'N/A'}</div>
+                                    <div className="text-[10px] text-muted-foreground">{vehicle?.plate_number || ''}</div>
+                                  </>
+                                )}
                               </td>
                               <td className="py-2.5">
                                 <p className="line-clamp-2">{expense.job_description}</p>
