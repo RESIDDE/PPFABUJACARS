@@ -1,7 +1,7 @@
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, Search, Receipt, Pencil, Trash2, Calendar as CalendarIcon, Car, TrendingUp, TrendingDown, DollarSign, Printer, Download, FileText, Image as ImageIcon, Loader2 } from "lucide-react";
-import { useForm } from "react-hook-form";
+import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
@@ -27,8 +27,12 @@ const schema = z.object({
   vehicle_id: z.string().optional(),
   expense_date: z.string().min(1, "Date is required"),
   technician_name: z.string().optional(),
-  job_description: z.string().min(1, "Job description is required"),
-  amount: z.coerce.number().min(0, "Amount must be positive"),
+  job_description: z.string().optional(),
+  amount: z.coerce.number().optional(),
+  other_expenses: z.array(z.object({
+    job_description: z.string().min(1, "Expense detail is required"),
+    amount: z.coerce.number().min(0, "Amount must be positive")
+  })).optional()
 }).superRefine((data, ctx) => {
   if (data.expense_type === "job") {
     if (!data.customer_id) {
@@ -39,6 +43,25 @@ const schema = z.object({
     }
     if (!data.technician_name) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Technician name is required", path: ["technician_name"] });
+    }
+    if (!data.job_description) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Job description is required", path: ["job_description"] });
+    }
+    if (data.amount === undefined || data.amount <= 0) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Amount must be positive", path: ["amount"] });
+    }
+  } else {
+    if (!data.other_expenses || data.other_expenses.length === 0) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "At least one expense is required", path: ["other_expenses"] });
+    } else {
+      data.other_expenses.forEach((exp, index) => {
+        if (!exp.job_description) {
+          ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Expense detail is required", path: ["other_expenses", index, "job_description"] });
+        }
+        if (exp.amount === undefined || exp.amount <= 0) {
+          ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Amount must be positive", path: ["other_expenses", index, "amount"] });
+        }
+      });
     }
   }
 });
@@ -64,6 +87,32 @@ function extractAllCss(): string {
   return parts.join("\n");
 }
 
+const AmountInput = ({ value, onChange, placeholder = "0" }: { value: number | undefined, onChange: (val: number) => void, placeholder?: string }) => {
+  const [displayValue, setDisplayValue] = useState(value ? value.toLocaleString('en-US') : "");
+  
+  useEffect(() => {
+    if (value === 0 || value === undefined) {
+      setDisplayValue("");
+    } else if (Number(displayValue.replace(/,/g, '')) !== value) {
+      setDisplayValue(value.toLocaleString('en-US'));
+    }
+  }, [value, displayValue]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let val = e.target.value.replace(/[^0-9.]/g, '');
+    const parts = val.split('.');
+    if (parts.length > 2) val = parts[0] + '.' + parts.slice(1).join('');
+    if (parts[0]) {
+      parts[0] = parseInt(parts[0], 10).toLocaleString('en-US');
+    }
+    const formatted = parts.join('.');
+    setDisplayValue(formatted);
+    onChange(val ? Number(val) : 0);
+  };
+
+  return <Input type="text" placeholder={placeholder} value={displayValue} onChange={handleChange} />;
+};
+
 export default function Expenses() {
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -76,7 +125,17 @@ export default function Expenses() {
   const [filterStartDate, setFilterStartDate] = useState("");
   const [filterEndDate, setFilterEndDate] = useState("");
   const [selectedCustomer, setSelectedCustomer] = useState("");
-  const [displayAmount, setDisplayAmount] = useState("");
+  const [expandedCards, setExpandedCards] = useState<Record<string, boolean>>({});
+  
+  const toggleCard = (id: string) => setExpandedCards(prev => ({ ...prev, [id]: !prev[id] }));
+
+  const parseOtherExpenses = (jobDesc: string) => {
+    try {
+      const parsed = JSON.parse(jobDesc);
+      if (Array.isArray(parsed)) return parsed;
+    } catch {}
+    return null;
+  };
   
   const reportRef = useRef<HTMLDivElement>(null);
 
@@ -199,31 +258,57 @@ export default function Expenses() {
   const totalPages = Math.ceil(expenses.length / PAGE_SIZE);
   const paginated = expenses.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
-  const { register, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm<FormData>({
+  const { register, handleSubmit, reset, setValue, watch, control, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: {
       expense_type: "job",
       expense_date: format(new Date(), "yyyy-MM-dd"),
+      other_expenses: [{ job_description: "", amount: 0 }],
     }
   });
 
+  const { fields: otherExpensesFields, append: appendOtherExpense, remove: removeOtherExpense } = useFieldArray({
+    control,
+    name: "other_expenses"
+  });
+
+  const watchOtherExpenses = watch("other_expenses");
+  const totalOtherExpenses = watchOtherExpenses?.reduce((sum, item) => sum + (Number(item.amount) || 0), 0) || 0;
+
   const mutation = useMutation({
     mutationFn: async (data: FormData) => {
-      const payload = { 
-        expense_type: data.expense_type,
-        vehicle_id: data.expense_type === "job" ? data.vehicle_id : null,
-        expense_date: data.expense_date,
-        technician_name: data.expense_type === "job" ? data.technician_name : null,
-        job_description: data.job_description,
-        amount: data.amount,
-      };
+      if (data.expense_type === "job") {
+        const payload = { 
+          expense_type: "job",
+          vehicle_id: data.vehicle_id,
+          expense_date: data.expense_date,
+          technician_name: data.technician_name,
+          job_description: data.job_description,
+          amount: data.amount,
+        };
 
-      if (editingId) {
-        const { error } = await supabase.from("expenses").update(payload).eq("id", editingId);
-        if (error) throw error;
+        if (editingId) {
+          const { error } = await supabase.from("expenses").update(payload).eq("id", editingId);
+          if (error) throw error;
+        } else {
+          const { error } = await supabase.from("expenses").insert(payload);
+          if (error) throw error;
+        }
       } else {
-        const { error } = await supabase.from("expenses").insert(payload);
-        if (error) throw error;
+        const payload = {
+          expense_type: "other",
+          expense_date: data.expense_date,
+          job_description: JSON.stringify(data.other_expenses),
+          amount: data.other_expenses!.reduce((sum, item) => sum + (Number(item.amount) || 0), 0),
+        };
+
+        if (editingId) {
+          const { error } = await supabase.from("expenses").update(payload).eq("id", editingId);
+          if (error) throw error;
+        } else {
+          const { error } = await supabase.from("expenses").insert(payload);
+          if (error) throw error;
+        }
       }
     },
     onSuccess: () => {
@@ -258,9 +343,9 @@ export default function Expenses() {
       technician_name: "",
       job_description: "",
       amount: 0,
+      other_expenses: [{ job_description: "", amount: 0 }],
     }); 
     setSelectedCustomer("");
-    setDisplayAmount("");
     setEditingId(null); 
     setDialogOpen(true); 
   };
@@ -274,24 +359,12 @@ export default function Expenses() {
       vehicle_id: e.vehicle_id || "",
       expense_date: e.expense_date,
       technician_name: e.technician_name || "",
-      job_description: e.job_description,
-      amount: e.amount,
+      job_description: e.expense_type === "job" ? e.job_description : "",
+      amount: e.expense_type === "job" ? e.amount : 0,
+      other_expenses: e.expense_type === "other" ? (parseOtherExpenses(e.job_description) || [{ job_description: e.job_description, amount: e.amount }]) : [{ job_description: "", amount: 0 }],
     });
-    setDisplayAmount(e.amount ? Number(e.amount).toLocaleString('en-US') : "");
     setEditingId(e.id); 
     setDialogOpen(true);
-  };
-
-  const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    let val = e.target.value.replace(/[^0-9.]/g, '');
-    const parts = val.split('.');
-    if (parts.length > 2) val = parts[0] + '.' + parts.slice(1).join('');
-    if (parts[0]) {
-      parts[0] = parseInt(parts[0], 10).toLocaleString('en-US');
-    }
-    const formatted = parts.join('.');
-    setDisplayAmount(formatted);
-    setValue("amount", val ? Number(val) : 0, { shouldValidate: true });
   };
 
   const formatCurrency = (amount: number) => {
@@ -522,19 +595,38 @@ export default function Expenses() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {paginated.map((expense: any) => {
               const vehicle = expense.vehicles;
+              const parsedOther = expense.expense_type === 'other' ? parseOtherExpenses(expense.job_description) : null;
               return (
                 <Card key={expense.id} className="hover:border-primary/30 transition-colors group">
                   <CardContent className="p-5">
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-lg bg-orange-500/10 flex items-center justify-center">
+                        <div className="h-10 w-10 rounded-lg bg-orange-500/10 flex items-center justify-center shrink-0">
                           <Receipt className="h-5 w-5 text-orange-500" />
                         </div>
                         <div>
-                          <p className="font-semibold text-sm line-clamp-1">{expense.job_description}</p>
-                          <p className="text-xs text-muted-foreground font-medium text-destructive mt-0.5">
-                            {formatCurrency(expense.amount)}
-                          </p>
+                          {expense.expense_type === 'other' ? (
+                            <>
+                              <p className="font-semibold text-sm line-clamp-1">{parsedOther ? 'Grouped General Expenses' : expense.job_description}</p>
+                              <div className="flex items-center gap-2 mt-0.5">
+                                <p className="text-xs font-medium text-destructive">
+                                  {formatCurrency(expense.amount)}
+                                </p>
+                                {parsedOther && (
+                                  <span className="text-[10px] bg-muted px-1.5 py-0.5 rounded-md text-muted-foreground">
+                                    {parsedOther.length} items
+                                  </span>
+                                )}
+                              </div>
+                            </>
+                          ) : (
+                            <>
+                              <p className="font-semibold text-sm line-clamp-1">{expense.job_description}</p>
+                              <p className="text-xs text-muted-foreground font-medium text-destructive mt-0.5">
+                                {formatCurrency(expense.amount)}
+                              </p>
+                            </>
+                          )}
                         </div>
                       </div>
                       <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -542,7 +634,26 @@ export default function Expenses() {
                         <button onClick={() => { if (confirm("Delete this expense?")) deleteMutation.mutate(expense.id); }} className="p-1.5 rounded hover:bg-destructive/10 hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button>
                       </div>
                     </div>
-                    <div className="space-y-2 mt-4 text-xs text-muted-foreground bg-muted/30 p-3 rounded-lg border border-border/50">
+
+                    {parsedOther && (
+                      <div className="mt-2 mb-3">
+                        <Button type="button" variant="ghost" size="sm" className="h-7 w-full text-[11px] bg-muted/40 hover:bg-muted/60" onClick={() => toggleCard(expense.id)}>
+                          {expandedCards[expense.id] ? "Hide Items" : "View Items"}
+                        </Button>
+                        {expandedCards[expense.id] && (
+                          <div className="mt-2 space-y-1.5 p-2 bg-muted/20 rounded-md border border-border/40">
+                            {parsedOther.map((subItem: any, idx: number) => (
+                              <div key={idx} className="flex justify-between items-center text-xs">
+                                <span className="text-muted-foreground truncate mr-2" title={subItem.job_description}>• {subItem.job_description}</span>
+                                <span className="font-medium shrink-0">{formatCurrency(subItem.amount)}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    <div className="space-y-2 mt-3 text-xs text-muted-foreground bg-muted/30 p-3 rounded-lg border border-border/50">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-1.5">
                           <CalendarIcon className="h-3.5 w-3.5 opacity-70" />
@@ -654,39 +765,111 @@ export default function Expenses() {
               </div>
             )}
 
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2">
-                <Label htmlFor="expense_date">Date *</Label>
-                <Input id="expense_date" type="date" {...register("expense_date")} />
-                {errors.expense_date && <p className="text-xs text-destructive">{errors.expense_date.message}</p>}
-              </div>
+            {watch("expense_type") === "job" ? (
+              <>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="expense_date">Date *</Label>
+                    <Input id="expense_date" type="date" {...register("expense_date")} />
+                    {errors.expense_date && <p className="text-xs text-destructive">{errors.expense_date.message}</p>}
+                  </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="amount">Amount (₦) *</Label>
-                <Input id="amount" type="text" placeholder="0" value={displayAmount} onChange={handleAmountChange} />
-                {errors.amount && <p className="text-xs text-destructive">{errors.amount.message}</p>}
-              </div>
-            </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="amount">Amount (₦) *</Label>
+                    <AmountInput 
+                      value={watch("amount")} 
+                      onChange={(val) => setValue("amount", val, { shouldValidate: true })} 
+                    />
+                    {errors.amount && <p className="text-xs text-destructive">{errors.amount.message}</p>}
+                  </div>
+                </div>
 
-            {watch("expense_type") === "job" && (
-              <div className="space-y-2">
-                <Label htmlFor="technician_name">Technician Name *</Label>
-                <Input id="technician_name" placeholder="John Doe" {...register("technician_name")} />
-                {errors.technician_name && <p className="text-xs text-destructive">{errors.technician_name.message}</p>}
-              </div>
+                <div className="space-y-2">
+                  <Label htmlFor="technician_name">Technician Name *</Label>
+                  <Input id="technician_name" placeholder="John Doe" {...register("technician_name")} />
+                  {errors.technician_name && <p className="text-xs text-destructive">{errors.technician_name.message}</p>}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="job_description">Job Description *</Label>
+                  <Textarea 
+                    id="job_description" 
+                    placeholder="Description of the expense or job done..." 
+                    {...register("job_description")} 
+                  />
+                  {errors.job_description && <p className="text-xs text-destructive">{errors.job_description.message}</p>}
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="space-y-2 mb-4">
+                  <Label htmlFor="expense_date">Date *</Label>
+                  <Input id="expense_date" type="date" {...register("expense_date")} className="w-1/2" />
+                  {errors.expense_date && <p className="text-xs text-destructive">{errors.expense_date.message}</p>}
+                </div>
+                
+                <div className="space-y-4">
+                  {otherExpensesFields.map((field, index) => (
+                    <div key={field.id} className="flex gap-3 items-start relative p-3 border rounded-md bg-muted/20">
+                      <div className="flex-1 space-y-3">
+                        <div className="space-y-1">
+                          <Label>Expense Details *</Label>
+                          <Input 
+                            placeholder="E.g., Office Rent, Electricity Bill..." 
+                            {...register(`other_expenses.${index}.job_description`)} 
+                          />
+                          {errors.other_expenses?.[index]?.job_description && <p className="text-xs text-destructive">{errors.other_expenses[index]?.job_description?.message}</p>}
+                        </div>
+                        <div className="space-y-1">
+                          <Label>Amount (₦) *</Label>
+                          <AmountInput 
+                            value={watch(`other_expenses.${index}.amount`)} 
+                            onChange={(val) => setValue(`other_expenses.${index}.amount`, val, { shouldValidate: true })} 
+                          />
+                          {errors.other_expenses?.[index]?.amount && <p className="text-xs text-destructive">{errors.other_expenses[index]?.amount?.message}</p>}
+                        </div>
+                      </div>
+                      
+                      {!editingId && otherExpensesFields.length > 1 && (
+                        <Button 
+                          type="button" 
+                          variant="ghost" 
+                          size="icon" 
+                          className="text-destructive mt-6 hover:bg-destructive/10"
+                          onClick={() => removeOtherExpense(index)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  ))}
+                  
+                  {!editingId && (
+                    <div className="flex items-center justify-between mt-2 pt-2 border-t">
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => appendOtherExpense({ job_description: "", amount: 0 })}
+                      >
+                        <Plus className="h-4 w-4 mr-2" /> Add Another
+                      </Button>
+                      
+                      <div className="text-right">
+                        <p className="text-sm font-medium text-muted-foreground">Total</p>
+                        <p className="text-xl font-bold text-primary">{formatCurrency(totalOtherExpenses)}</p>
+                      </div>
+                    </div>
+                  )}
+                  {editingId && (
+                     <div className="text-right mt-2 pt-2 border-t">
+                        <p className="text-sm font-medium text-muted-foreground">Amount</p>
+                        <p className="text-xl font-bold text-primary">{formatCurrency(totalOtherExpenses)}</p>
+                     </div>
+                  )}
+                </div>
+              </>
             )}
-
-            <div className="space-y-2">
-              <Label htmlFor="job_description">
-                {watch("expense_type") === "job" ? "Job Description *" : "Expense Details *"}
-              </Label>
-              <Textarea 
-                id="job_description" 
-                placeholder={watch("expense_type") === "job" ? "Description of the expense or job done..." : "E.g., Office Rent, Electricity Bill, Cleaning..."} 
-                {...register("job_description")} 
-              />
-              {errors.job_description && <p className="text-xs text-destructive">{errors.job_description.message}</p>}
-            </div>
 
             <DialogFooter className="pt-4">
               <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
@@ -796,7 +979,25 @@ export default function Expenses() {
                                 )}
                               </td>
                               <td className="py-2.5">
-                                <p className="line-clamp-2">{expense.job_description}</p>
+                                {expense.expense_type === 'other' ? (
+                                  (() => {
+                                    const parsed = parseOtherExpenses(expense.job_description);
+                                    if (parsed) {
+                                      return (
+                                        <div className="space-y-1">
+                                          {parsed.map((item: any, idx: number) => (
+                                            <div key={idx} className="text-[10px]">
+                                              • {item.job_description} ({formatCurrency(item.amount)})
+                                            </div>
+                                          ))}
+                                        </div>
+                                      );
+                                    }
+                                    return <p className="line-clamp-2">{expense.job_description}</p>;
+                                  })()
+                                ) : (
+                                  <p className="line-clamp-2">{expense.job_description}</p>
+                                )}
                               </td>
                               <td className="py-2.5 text-right font-medium">{formatCurrency(expense.amount)}</td>
                             </tr>
