@@ -830,7 +830,7 @@ export default function Expenses() {
                         </div>
                       </div>
                       
-                      {!editingId && otherExpensesFields.length > 1 && (
+                      {otherExpensesFields.length > 1 && (
                         <Button 
                           type="button" 
                           variant="ghost" 
@@ -844,29 +844,21 @@ export default function Expenses() {
                     </div>
                   ))}
                   
-                  {!editingId && (
-                    <div className="flex items-center justify-between mt-2 pt-2 border-t">
-                      <Button 
-                        type="button" 
-                        variant="outline" 
-                        size="sm" 
-                        onClick={() => appendOtherExpense({ job_description: "", amount: 0 })}
-                      >
-                        <Plus className="h-4 w-4 mr-2" /> Add Another
-                      </Button>
-                      
-                      <div className="text-right">
-                        <p className="text-sm font-medium text-muted-foreground">Total</p>
-                        <p className="text-xl font-bold text-primary">{formatCurrency(totalOtherExpenses)}</p>
-                      </div>
+                  <div className="flex items-center justify-between mt-2 pt-2 border-t">
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => appendOtherExpense({ job_description: "", amount: 0 })}
+                    >
+                      <Plus className="h-4 w-4 mr-2" /> Add Another
+                    </Button>
+                    
+                    <div className="text-right">
+                      <p className="text-sm font-medium text-muted-foreground">Total</p>
+                      <p className="text-xl font-bold text-primary">{formatCurrency(totalOtherExpenses)}</p>
                     </div>
-                  )}
-                  {editingId && (
-                     <div className="text-right mt-2 pt-2 border-t">
-                        <p className="text-sm font-medium text-muted-foreground">Amount</p>
-                        <p className="text-xl font-bold text-primary">{formatCurrency(totalOtherExpenses)}</p>
-                     </div>
-                  )}
+                  </div>
                 </div>
               </>
             )}
