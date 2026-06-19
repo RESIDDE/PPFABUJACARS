@@ -362,7 +362,11 @@ export default function ReceiptDocument({ invoiceId, onClose, hideHeader }: { in
                               </span>
                             )}
                           </p>
-                          <p className="text-[10px] text-muted-foreground mt-0.5">{item.ppf_products?.brand} {item.ppf_products?.name}</p>
+                          {item.item_type === 'other' ? (
+                            <p className="text-[10px] text-muted-foreground mt-0.5">Other Service</p>
+                          ) : (
+                            <p className="text-[10px] text-muted-foreground mt-0.5">{item.ppf_products?.brand} {item.ppf_products?.name}</p>
+                          )}
                         </td>
                         <td className="py-2.5 text-right">{item.quantity_used}</td>
                       </tr>

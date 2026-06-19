@@ -31,6 +31,14 @@ const itemSchema = z.object({
 });
 type ItemForm = z.infer<typeof itemSchema>;
 
+const otherServiceSchema = z.object({
+  description: z.string().min(1, "Description is required"),
+  quantity: z.coerce.number().min(0.1, "Quantity must be > 0").default(1),
+  amount: z.coerce.number().min(0, "Amount must be >= 0"),
+  notes: z.string().optional(),
+});
+type OtherServiceForm = z.infer<typeof otherServiceSchema>;
+
 const STATUS_OPTIONS: ServiceOrderStatus[] = ["pending", "in_progress", "completed", "delivered", "cancelled"];
 
 export default function ServiceOrderDetail() {
@@ -38,6 +46,7 @@ export default function ServiceOrderDetail() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const [addItemOpen, setAddItemOpen] = useState(false);
+  const [addOtherServiceOpen, setAddOtherServiceOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<{ id: string; selling_price: number } | null>(null);
   
   const [feesOpen, setFeesOpen] = useState(false);
@@ -68,6 +77,10 @@ export default function ServiceOrderDetail() {
 
   const { register, control, handleSubmit, reset, setValue, formState: { errors } } = useForm<ItemForm>({
     resolver: zodResolver(itemSchema),
+  });
+
+  const { register: registerOther, control: controlOther, handleSubmit: handleOtherSubmit, reset: resetOther, formState: { errors: otherErrors } } = useForm<OtherServiceForm>({
+    resolver: zodResolver(otherServiceSchema),
   });
 
   const statusMutation = useMutation({
@@ -119,6 +132,35 @@ export default function ServiceOrderDetail() {
       setAddItemOpen(false);
       reset();
       setSelectedProduct(null);
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const addOtherServiceMutation = useMutation({
+    mutationFn: async (data: OtherServiceForm) => {
+      const line_total = data.amount * data.quantity;
+      const { error } = await supabase.from("service_order_items").insert({
+        service_order_id: id!,
+        item_type: 'other' as any,
+        area_description: data.description,
+        quantity_used: data.quantity,
+        unit_price: data.amount,
+        line_total,
+        notes: data.notes || null,
+      });
+      if (error) throw error;
+
+      // Recalc order total
+      const items = [...(order?.service_order_items ?? []), { line_total }];
+      const subtotal = items.reduce((s: any, i: any) => s + ((i as { line_total: number }).line_total ?? 0), 0);
+      const total_amount = subtotal + (order?.service_charge || 0) - (order?.discount || 0) + (order?.tax || 0);
+      await supabase.from("service_orders").update({ subtotal, total_amount }).eq("id", id!);
+    },
+    onSuccess: () => {
+      toast.success("Other service added");
+      qc.invalidateQueries({ queryKey: ["service-order", id] });
+      setAddOtherServiceOpen(false);
+      resetOther();
     },
     onError: (e) => toast.error(e.message),
   });
@@ -320,8 +362,11 @@ export default function ServiceOrderDetail() {
           <Card>
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-sm">PPF Service Items</CardTitle>
-                <Button size="sm" onClick={() => setAddItemOpen(true)}><Plus className="h-3.5 w-3.5" /> Add Item</Button>
+                <CardTitle className="text-sm">Service Items</CardTitle>
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline" onClick={() => setAddOtherServiceOpen(true)}><Plus className="h-3.5 w-3.5" /> Add Other Service</Button>
+                  <Button size="sm" onClick={() => setAddItemOpen(true)}><Plus className="h-3.5 w-3.5" /> Add PPF Item</Button>
+                </div>
               </div>
             </CardHeader>
             <CardContent className="p-0">
@@ -335,16 +380,25 @@ export default function ServiceOrderDetail() {
                       {items.map((item: any) => (
                         <tr key={item.id}>
                           <td className="px-5 py-3">
-                            <p className="font-medium">{item.ppf_products?.name}</p>
-                            <p className="text-xs text-muted-foreground">{item.ppf_products?.brand}</p>
-                            {item.vehicles && (
-                              <Badge variant="outline" className="mt-1 text-[9px] px-1 py-0 bg-muted/50">
-                                {item.vehicles.make} {item.vehicles.model}
-                              </Badge>
+                            {item.item_type === 'other' ? (
+                              <>
+                                <p className="font-medium">Other Service</p>
+                                <p className="text-xs text-muted-foreground">General Service</p>
+                              </>
+                            ) : (
+                              <>
+                                <p className="font-medium">{item.ppf_products?.name}</p>
+                                <p className="text-xs text-muted-foreground">{item.ppf_products?.brand}</p>
+                                {item.vehicles && (
+                                  <Badge variant="outline" className="mt-1 text-[9px] px-1 py-0 bg-muted/50">
+                                    {item.vehicles.make} {item.vehicles.model}
+                                  </Badge>
+                                )}
+                              </>
                             )}
                           </td>
                           <td className="px-5 py-3 text-muted-foreground">{item.area_description}</td>
-                          <td className="px-5 py-3 text-right">{item.quantity_used} {item.ppf_products?.unit}</td>
+                          <td className="px-5 py-3 text-right">{item.item_type === 'other' ? item.quantity_used : `${item.quantity_used} ${item.ppf_products?.unit || ''}`}</td>
                           <td className="px-5 py-3 text-right">{formatCurrency(item.unit_price)}</td>
                           <td className="px-5 py-3 text-right font-semibold">{formatCurrency(item.line_total)}</td>
                           <td className="px-3 py-3"><button onClick={() => removeItemMutation.mutate(item.id)} className="p-1 rounded hover:bg-destructive/10 hover:text-destructive transition-colors"><Trash2 className="h-3.5 w-3.5" /></button></td>
@@ -502,6 +556,44 @@ export default function ServiceOrderDetail() {
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setAddItemOpen(false)}>Cancel</Button>
               <Button type="submit" disabled={addItemMutation.isPending}>{addItemMutation.isPending ? "Adding..." : "Add Item"}</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Other Service Dialog */}
+      <Dialog open={addOtherServiceOpen} onOpenChange={setAddOtherServiceOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Add Other Service</DialogTitle></DialogHeader>
+          <form onSubmit={handleOtherSubmit((d) => addOtherServiceMutation.mutate(d))} className="space-y-4">
+            
+            <div className="space-y-2">
+              <Label htmlFor="other-description">Service Description *</Label>
+              <Input id="other-description" placeholder="e.g. Chrome Delete, Tinting, Wash..." {...registerOther("description")} />
+              {otherErrors.description && <p className="text-xs text-destructive">{otherErrors.description.message}</p>}
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="other-quantity">Quantity *</Label>
+                <Input id="other-quantity" type="number" step="0.1" placeholder="1" {...registerOther("quantity")} />
+                {otherErrors.quantity && <p className="text-xs text-destructive">{otherErrors.quantity.message}</p>}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="other-amount">Unit Price (₦) *</Label>
+                <Controller control={controlOther} name="amount" render={({ field }) => <CurrencyInput id="other-amount" placeholder="0" {...field} />} />
+                {otherErrors.amount && <p className="text-xs text-destructive">{otherErrors.amount.message}</p>}
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="other-notes">Notes</Label>
+              <Input id="other-notes" placeholder="Optional notes..." {...registerOther("notes")} />
+            </div>
+            
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setAddOtherServiceOpen(false)}>Cancel</Button>
+              <Button type="submit" disabled={addOtherServiceMutation.isPending}>{addOtherServiceMutation.isPending ? "Adding..." : "Add Service"}</Button>
             </DialogFooter>
           </form>
         </DialogContent>
