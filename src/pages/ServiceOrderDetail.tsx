@@ -33,8 +33,8 @@ type ItemForm = z.infer<typeof itemSchema>;
 
 const otherServiceSchema = z.object({
   description: z.string().min(1, "Description is required"),
-  quantity: z.coerce.number().min(0.1, "Quantity must be > 0").default(1),
-  amount: z.coerce.number().min(0, "Amount must be >= 0"),
+  quantity: z.coerce.number().optional(),
+  amount: z.coerce.number().optional(),
   notes: z.string().optional(),
 });
 type OtherServiceForm = z.infer<typeof otherServiceSchema>;
@@ -138,14 +138,16 @@ export default function ServiceOrderDetail() {
 
   const addOtherServiceMutation = useMutation({
     mutationFn: async (data: OtherServiceForm) => {
-      const line_total = data.amount * data.quantity;
+      const qty = data.quantity ?? 1;
+      const amt = data.amount ?? 0;
+      const line_total = amt * qty;
       const { error } = await supabase.from("service_order_items").insert({
         service_order_id: id!,
         // @ts-ignore: schema type not yet regenerated
         item_type: 'other',
         area_description: data.description,
-        quantity_used: data.quantity,
-        unit_price: data.amount,
+        quantity_used: qty,
+        unit_price: amt,
         line_total,
         notes: data.notes || null,
       });
@@ -576,12 +578,12 @@ export default function ServiceOrderDetail() {
             
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="other-quantity">Quantity *</Label>
+                <Label htmlFor="other-quantity">Quantity</Label>
                 <Input id="other-quantity" type="number" step="0.1" placeholder="1" {...registerOther("quantity")} />
                 {otherErrors.quantity && <p className="text-xs text-destructive">{otherErrors.quantity.message}</p>}
               </div>
               <div className="space-y-2">
-                <Label htmlFor="other-amount">Unit Price (₦) *</Label>
+                <Label htmlFor="other-amount">Unit Price (₦)</Label>
                 <Controller control={controlOther} name="amount" render={({ field }) => <CurrencyInput id="other-amount" placeholder="0" {...field} />} />
                 {otherErrors.amount && <p className="text-xs text-destructive">{otherErrors.amount.message}</p>}
               </div>
