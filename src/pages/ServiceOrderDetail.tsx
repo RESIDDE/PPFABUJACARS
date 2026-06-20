@@ -141,7 +141,8 @@ export default function ServiceOrderDetail() {
       const line_total = data.amount * data.quantity;
       const { error } = await supabase.from("service_order_items").insert({
         service_order_id: id!,
-        item_type: 'other' as any,
+        // @ts-ignore: schema type not yet regenerated
+        item_type: 'other',
         area_description: data.description,
         quantity_used: data.quantity,
         unit_price: data.amount,
