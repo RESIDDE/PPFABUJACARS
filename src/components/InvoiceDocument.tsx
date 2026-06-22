@@ -170,7 +170,27 @@ export default function InvoiceDocument({ invoiceId, onClose, hideHeader }: { in
         document.documentElement.classList.add("dark");
       }
 
-      await downloadFile(canvas.toDataURL("image/png"), `Invoice-${invoice?.invoice_number}.png`);
+      let a4Width = canvas.width;
+      let a4Height = Math.floor(a4Width * 1.4142857);
+
+      if (canvas.height > a4Height) {
+        a4Height = canvas.height;
+        a4Width = Math.floor(a4Height / 1.4142857);
+      }
+
+      const a4Canvas = document.createElement("canvas");
+      a4Canvas.width = a4Width;
+      a4Canvas.height = a4Height;
+      const ctx = a4Canvas.getContext("2d");
+      
+      if (ctx) {
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, a4Width, a4Height);
+        const xOffset = (a4Width - canvas.width) / 2;
+        ctx.drawImage(canvas, xOffset, 0);
+      }
+
+      await downloadFile(a4Canvas.toDataURL("image/png"), `Invoice-${invoice?.invoice_number}.png`);
     } catch (error) {
       console.error("Failed to generate PNG", error);
       alert("Failed to download PNG. Please try again.");
@@ -277,7 +297,7 @@ export default function InvoiceDocument({ invoiceId, onClose, hideHeader }: { in
                   <img src="/logo.jpeg" alt="PPF Abuja Cars Logo" className="w-full h-full object-cover" />
                 </div>
                 <div>
-                  <h3 className="font-black text-base text-foreground uppercase tracking-wide">PPF Abuja Cars</h3>
+                  <h3 className="font-black text-base text-foreground uppercase tracking-wide">PPF ABUJACAR</h3>
                   <p className="text-[11px] text-muted-foreground leading-snug mt-0.5">Plot 5 Bala Kona Street, off Ahmadu Bello</p>
                   <p className="text-[11px] text-muted-foreground leading-snug">Expressway, Kado, FCT Abuja</p>
                   <p className="text-[11px] text-muted-foreground mt-0.5">+234 808 535 9774</p>

@@ -261,7 +261,7 @@ export default function Inventory() {
                     <img src="${baseUrl}/logo.jpeg" alt="PPF Abuja Cars Logo" />
                   </div>
                   <div class="company-info">
-                    <h3>PPF Abuja Cars</h3>
+                    <h3>PPF ABUJACAR</h3>
                     <p>Plot 5 Bala Kona Street, off Ahmadu Bello</p>
                     <p>Expressway, Kado, FCT Abuja</p>
                     <p>+234 808 535 9774</p>

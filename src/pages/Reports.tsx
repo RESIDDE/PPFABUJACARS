@@ -224,7 +224,7 @@ export default function Reports() {
                 <img src="/logo.jpeg" alt="PPF Abuja Cars Logo" className="w-full h-full object-cover" />
               </div>
               <div>
-                <h3 className="font-bold text-2xl text-slate-900">PPF Abuja Cars</h3>
+                <h3 className="font-bold text-2xl text-slate-900">PPF ABUJACAR</h3>
                 <p className="text-sm text-slate-500 mt-1.5">Abuja, FCT, Nigeria</p>
                 <p className="text-sm text-slate-500">info@ppfabujacars.com</p>
                 <p className="text-sm text-slate-500">+234 800 0000 000</p>
