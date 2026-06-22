@@ -16,7 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { formatDate, formatCurrency, getStatusLabel, generateOrderNumber } from "@/lib/utils";
+import { formatDate, formatCurrency, getStatusLabel, generateOrderNumber, confirmDelete } from "@/lib/utils";
 import type { ServiceOrderStatus } from "@/integrations/supabase/types";
 import CustomerHistoryDialog from "@/components/CustomerHistoryDialog";
 import { Pagination } from "@/components/ui/pagination";
@@ -268,7 +268,7 @@ export default function ServiceOrders() {
                       </div>
                       <div className="flex items-center gap-2">
                         <Badge variant={o.status.replace("-", "_") as "pending" | "in_progress" | "completed" | "delivered" | "cancelled"}>{getStatusLabel(o.status)}</Badge>
-                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={(e) => { e.stopPropagation(); if(confirm("Are you sure you want to delete this service order?")) deleteMutation.mutate(o.id); }}>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={(e) => { e.stopPropagation(); if(confirmDelete("service order")) deleteMutation.mutate(o.id); }}>
                           <Trash2 className="h-3.5 w-3.5" />
                         </Button>
                       </div>
@@ -329,7 +329,7 @@ export default function ServiceOrders() {
                         <td className="px-5 py-3.5">
                           <div className="flex items-center justify-end gap-1">
                             <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); navigate(`/service-orders/${o.id}`); }}><Eye className="h-4 w-4" /></Button>
-                            <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={(e) => { e.stopPropagation(); if(confirm("Are you sure you want to delete this service order?")) deleteMutation.mutate(o.id); }}>
+                            <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={(e) => { e.stopPropagation(); if(confirmDelete("service order")) deleteMutation.mutate(o.id); }}>
                               <Trash2 className="h-4 w-4" />
                             </Button>
                           </div>

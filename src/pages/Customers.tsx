@@ -14,7 +14,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter
 } from "@/components/ui/dialog";
-import { formatDate } from "@/lib/utils";
+import { formatDate, confirmDelete } from "@/lib/utils";
 import { Pagination } from "@/components/ui/pagination";
 
 const PAGE_SIZE = 10;
@@ -139,7 +139,7 @@ export default function Customers() {
                     </div>
                     <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button onClick={() => openEdit(c as unknown as Record<string, unknown>)} className="p-1.5 rounded hover:bg-muted transition-colors"><Pencil className="h-3.5 w-3.5" /></button>
-                      <button onClick={() => { if (confirm("Delete this customer?")) deleteMutation.mutate(c.id); }} className="p-1.5 rounded hover:bg-destructive/10 hover:text-destructive transition-colors"><Trash2 className="h-3.5 w-3.5" /></button>
+                      <button onClick={() => { if (confirmDelete("customer")) deleteMutation.mutate(c.id); }} className="p-1.5 rounded hover:bg-destructive/10 hover:text-destructive transition-colors"><Trash2 className="h-3.5 w-3.5" /></button>
                     </div>
                   </div>
                   <div className="space-y-1.5 text-xs text-muted-foreground">

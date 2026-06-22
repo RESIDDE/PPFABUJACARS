@@ -14,7 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { formatDate, formatDateTime, formatCurrency, getStatusLabel } from "@/lib/utils";
+import { formatDate, formatDateTime, formatCurrency, getStatusLabel, confirmDelete } from "@/lib/utils";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import type { InvoiceStatus } from "@/integrations/supabase/types";
 import InvoiceDocument from "@/components/InvoiceDocument";
@@ -273,7 +273,7 @@ export default function Invoices() {
                               </Button>
                             </>
                           )}
-                          <Button size="sm" variant="ghost" className="text-destructive hover:bg-destructive/10 hover:text-destructive p-0 h-8 w-8 ml-1" onClick={() => { if(confirm("Are you sure you want to delete this invoice?")) deleteMutation.mutate(inv.id); }}>
+                          <Button size="sm" variant="ghost" className="text-destructive hover:bg-destructive/10 hover:text-destructive p-0 h-8 w-8 ml-1" onClick={() => { if(confirmDelete("invoice")) deleteMutation.mutate(inv.id); }}>
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>

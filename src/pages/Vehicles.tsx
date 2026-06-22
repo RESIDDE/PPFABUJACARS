@@ -14,7 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { formatDate } from "@/lib/utils";
+import { formatDate, confirmDelete } from "@/lib/utils";
 import { Pagination } from "@/components/ui/pagination";
 
 const PAGE_SIZE = 10;
@@ -321,7 +321,7 @@ export default function Vehicles() {
                       </div>
                       <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button onClick={() => openEdit(v)} className="p-1.5 rounded hover:bg-muted"><Pencil className="h-3.5 w-3.5" /></button>
-                        <button onClick={() => { if (confirm("Delete this vehicle?")) deleteMutation.mutate(v.id); }} className="p-1.5 rounded hover:bg-destructive/10 hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button>
+                        <button onClick={() => { if (confirmDelete("vehicle")) deleteMutation.mutate(v.id); }} className="p-1.5 rounded hover:bg-destructive/10 hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button>
                       </div>
                     </div>
                     <div className="space-y-1 text-xs text-muted-foreground">

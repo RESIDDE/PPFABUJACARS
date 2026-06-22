@@ -17,6 +17,7 @@ export default function Settings() {
   const [taxRate, setTaxRate] = useState("0");
   const [insideParkingPrice, setInsideParkingPrice] = useState<number | undefined>(() => Number(localStorage.getItem("insideParkingPrice")) || undefined);
   const [outsideParkingPrice, setOutsideParkingPrice] = useState<number | undefined>(() => Number(localStorage.getItem("outsideParkingPrice")) || undefined);
+  const [deletePhrase, setDeletePhrase] = useState(() => localStorage.getItem("deletePhrase") || "");
 
   return (
     <div className="space-y-6 max-w-2xl">
@@ -115,6 +116,37 @@ export default function Settings() {
             </div>
           </div>
           <Button onClick={() => toast.success("Parking prices saved")}>Save Prices</Button>
+        </CardContent>
+      </Card>
+
+      {/* Security Settings */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <Lock className="h-4 w-4 text-primary" />
+            <CardTitle className="text-sm">Security & Deletion</CardTitle>
+          </div>
+          <CardDescription>Require a specific phrase to delete any records</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="delete-phrase">Global Delete Phrase</Label>
+            <div className="flex gap-3">
+              <Input 
+                id="delete-phrase" 
+                value={deletePhrase} 
+                onChange={(e) => setDeletePhrase(e.target.value)} 
+                placeholder="Leave blank to disable" 
+              />
+              <Button onClick={() => {
+                localStorage.setItem("deletePhrase", deletePhrase.trim());
+                toast.success(deletePhrase.trim() ? "Delete phrase enabled" : "Delete phrase disabled");
+              }}>
+                Save
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">If set, users must type this exact phrase to confirm deletion of any record (invoices, service orders, etc.).</p>
+          </div>
         </CardContent>
       </Card>
 

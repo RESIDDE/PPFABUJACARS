@@ -119,3 +119,18 @@ export async function downloadFile(dataUrlOrBlob: string | Blob, fileName: strin
   document.body.removeChild(link);
   setTimeout(() => URL.revokeObjectURL(blobUrl), 100);
 }
+
+export function confirmDelete(itemDescription: string): boolean {
+  const phrase = localStorage.getItem("deletePhrase");
+  if (!phrase) {
+    return window.confirm(`Are you sure you want to delete this ${itemDescription}?`);
+  }
+  const input = window.prompt(`To delete this ${itemDescription}, please type the delete phrase:\n"${phrase}"`);
+  if (input !== null && input.trim() === phrase.trim()) {
+    return true;
+  }
+  if (input !== null) {
+    alert("Incorrect delete phrase. Deletion cancelled.");
+  }
+  return false;
+}
