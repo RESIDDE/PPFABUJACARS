@@ -729,7 +729,7 @@ export default function Expenses() {
 
       {/* FORM DIALOG */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingId ? "Edit Expense" : "Add New Expense"}</DialogTitle>
           </DialogHeader>
@@ -750,7 +750,7 @@ export default function Expenses() {
             </div>
 
             {watch("expense_type") === "job" && (
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-2">
                   <Label>Customer *</Label>
                   <Select 
@@ -799,7 +799,7 @@ export default function Expenses() {
 
             {watch("expense_type") === "job" ? (
               <>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="space-y-2">
                     <Label htmlFor="expense_date">Date *</Label>
                     <Input id="expense_date" type="date" {...register("expense_date")} />
@@ -836,7 +836,7 @@ export default function Expenses() {
               <>
                 <div className="space-y-2 mb-4">
                   <Label htmlFor="expense_date">Date *</Label>
-                  <Input id="expense_date" type="date" {...register("expense_date")} className="w-1/2" />
+                  <Input id="expense_date" type="date" {...register("expense_date")} className="w-full sm:w-1/2" />
                   {errors.expense_date && <p className="text-xs text-destructive">{errors.expense_date.message}</p>}
                 </div>
                 
@@ -852,7 +852,7 @@ export default function Expenses() {
                           />
                           {errors.other_expenses?.[index]?.job_description && <p className="text-xs text-destructive">{errors.other_expenses[index]?.job_description?.message}</p>}
                         </div>
-                        <div className="grid grid-cols-3 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                           <div className="space-y-1">
                             <Label>Quantity *</Label>
                             <Input 
