@@ -85,19 +85,27 @@ export default function Reports() {
   
   ordersData.forEach((o: any) => {
     if (o.status === "completed" || o.status === "delivered") {
-      const month = new Date(o.created_at).toLocaleString("default", { month: "short", year: "2-digit" });
-      if (!financialsByMonth[month]) financialsByMonth[month] = { revenue: 0, expenses: 0 };
-      financialsByMonth[month].revenue += (o.total_amount ?? 0);
+      const d = new Date(o.created_at);
+      const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      if (!financialsByMonth[monthKey]) financialsByMonth[monthKey] = { revenue: 0, expenses: 0 };
+      financialsByMonth[monthKey].revenue += (o.total_amount ?? 0);
     }
   });
 
   expensesData.forEach((e: any) => {
-    const month = new Date(e.expense_date).toLocaleString("default", { month: "short", year: "2-digit" });
-    if (!financialsByMonth[month]) financialsByMonth[month] = { revenue: 0, expenses: 0 };
-    financialsByMonth[month].expenses += (e.amount ?? 0);
+    const d = new Date(e.expense_date);
+    const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    if (!financialsByMonth[monthKey]) financialsByMonth[monthKey] = { revenue: 0, expenses: 0 };
+    financialsByMonth[monthKey].expenses += (e.amount ?? 0);
   });
   
-  const revenueChartData = Object.entries(financialsByMonth).map(([month, data]) => ({ month, revenue: data.revenue, expenses: data.expenses }));
+  const revenueChartData = Object.entries(financialsByMonth)
+    .sort(([keyA], [keyB]) => keyA.localeCompare(keyB))
+    .map(([key, data]) => {
+      const [year, month] = key.split("-");
+      const monthName = new Date(Number(year), Number(month) - 1).toLocaleString("default", { month: "short", year: "2-digit" });
+      return { month: monthName, revenue: data.revenue, expenses: data.expenses };
+    });
 
   // Status breakdown
   const statusCounts: Record<string, number> = {};
@@ -111,13 +119,19 @@ export default function Reports() {
   });
   const brandData = Object.entries(brandStock).map(([brand, value]) => ({ brand, value }));
 
-  // Customers per month
   const customersPerMonth: Record<string, number> = {};
   customersData.forEach((c: any) => {
-    const month = new Date(c.created_at).toLocaleString("default", { month: "short", year: "2-digit" });
-    customersPerMonth[month] = (customersPerMonth[month] ?? 0) + 1;
+    const d = new Date(c.created_at);
+    const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    customersPerMonth[monthKey] = (customersPerMonth[monthKey] ?? 0) + 1;
   });
-  const customerChartData = Object.entries(customersPerMonth).map(([month, count]) => ({ month, count }));
+  const customerChartData = Object.entries(customersPerMonth)
+    .sort(([keyA], [keyB]) => keyA.localeCompare(keyB))
+    .map(([key, count]) => {
+      const [year, month] = key.split("-");
+      const monthName = new Date(Number(year), Number(month) - 1).toLocaleString("default", { month: "short", year: "2-digit" });
+      return { month: monthName, count };
+    });
 
   const totalRevenue = ordersData.filter((o: any) => o.status === "completed" || o.status === "delivered").reduce((s: any, o: any) => s + (o.total_amount ?? 0), 0);
   const totalExpenses = expensesData.reduce((s: any, e: any) => s + (e.amount ?? 0), 0);
