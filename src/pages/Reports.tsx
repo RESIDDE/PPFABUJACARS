@@ -80,58 +80,32 @@ export default function Reports() {
   const expensesData = expensesRaw.filter((e: any) => filterByDate(e.expense_date));
   const customersData = customersDataRaw.filter((c: any) => filterByDate(c.created_at));
 
-  const getDaysDiff = (start: string, end: string) => {
-    return (new Date(end).getTime() - new Date(start).getTime()) / (1000 * 3600 * 24);
-  };
-
-  let groupBy = "month";
-  if (filterStartDate && filterEndDate) {
-    if (getDaysDiff(filterStartDate, filterEndDate) <= 60) groupBy = "day";
-  } else if (filterDate === "this_week" || filterDate === "this_month" || filterDate === "last_month") {
-    groupBy = "day";
-  }
-
-  const getGroupKey = (dateStr: string) => {
-    const d = new Date(dateStr);
-    if (groupBy === "day") {
-      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    }
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-  };
-
-  const formatGroupKey = (key: string) => {
-    if (groupBy === "day") {
-      const [year, month, day] = key.split("-");
-      return new Date(Number(year), Number(month) - 1, Number(day)).toLocaleString("default", { month: "short", day: "numeric" });
-    }
-    const [year, month] = key.split("-");
-    return new Date(Number(year), Number(month) - 1).toLocaleString("default", { month: "short", year: "2-digit" });
-  };
-
-  // Financials by group (Revenue & Expenses)
-  const financialsByGroup: Record<string, { revenue: number, expenses: number }> = {};
+  // Financials by date (Revenue & Expenses)
+  const financialsByDate: Record<string, { revenue: number, expenses: number }> = {};
   
   ordersData.forEach((o: any) => {
     if (o.status === "completed" || o.status === "delivered") {
-      const key = getGroupKey(o.created_at);
-      if (!financialsByGroup[key]) financialsByGroup[key] = { revenue: 0, expenses: 0 };
-      financialsByGroup[key].revenue += (o.total_amount ?? 0);
+      const d = new Date(o.created_at);
+      const dateKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      if (!financialsByDate[dateKey]) financialsByDate[dateKey] = { revenue: 0, expenses: 0 };
+      financialsByDate[dateKey].revenue += (o.total_amount ?? 0);
     }
   });
 
   expensesData.forEach((e: any) => {
-    const key = getGroupKey(e.expense_date);
-    if (!financialsByGroup[key]) financialsByGroup[key] = { revenue: 0, expenses: 0 };
-    financialsByGroup[key].expenses += (e.amount ?? 0);
+    const d = new Date(e.expense_date);
+    const dateKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    if (!financialsByDate[dateKey]) financialsByDate[dateKey] = { revenue: 0, expenses: 0 };
+    financialsByDate[dateKey].expenses += (e.amount ?? 0);
   });
   
-  const revenueChartData = Object.entries(financialsByGroup)
+  const revenueChartData = Object.entries(financialsByDate)
     .sort(([keyA], [keyB]) => keyA.localeCompare(keyB))
-    .map(([key, data]) => ({
-      month: formatGroupKey(key),
-      revenue: data.revenue,
-      expenses: data.expenses
-    }));
+    .map(([key, data]) => {
+      const [year, month, day] = key.split("-");
+      const dateName = new Date(Number(year), Number(month) - 1, Number(day)).toLocaleDateString("default", { month: "short", day: "numeric" });
+      return { date: dateName, revenue: data.revenue, expenses: data.expenses };
+    });
 
   // Status breakdown
   const statusCounts: Record<string, number> = {};
@@ -145,17 +119,19 @@ export default function Reports() {
   });
   const brandData = Object.entries(brandStock).map(([brand, value]) => ({ brand, value }));
 
-  const customersPerGroup: Record<string, number> = {};
+  const customersPerDate: Record<string, number> = {};
   customersData.forEach((c: any) => {
-    const key = getGroupKey(c.created_at);
-    customersPerGroup[key] = (customersPerGroup[key] ?? 0) + 1;
+    const d = new Date(c.created_at);
+    const dateKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    customersPerDate[dateKey] = (customersPerDate[dateKey] ?? 0) + 1;
   });
-  const customerChartData = Object.entries(customersPerGroup)
+  const customerChartData = Object.entries(customersPerDate)
     .sort(([keyA], [keyB]) => keyA.localeCompare(keyB))
-    .map(([key, count]) => ({
-      month: formatGroupKey(key),
-      count
-    }));
+    .map(([key, count]) => {
+      const [year, month, day] = key.split("-");
+      const dateName = new Date(Number(year), Number(month) - 1, Number(day)).toLocaleDateString("default", { month: "short", day: "numeric" });
+      return { date: dateName, count };
+    });
 
   const totalRevenue = ordersData.filter((o: any) => o.status === "completed" || o.status === "delivered").reduce((s: any, o: any) => s + (o.total_amount ?? 0), 0);
   const totalExpenses = expensesData.reduce((s: any, e: any) => s + (e.amount ?? 0), 0);
@@ -322,20 +298,30 @@ export default function Reports() {
                 <CardTitle className={cn("text-sm", exportMode ? "text-slate-700" : "print:text-slate-700")}>Revenue vs Expenses</CardTitle>
                 {hoveredCard === "revenue" && !exportMode && (
                   <p className="text-xs text-muted-foreground mt-1 animate-in fade-in slide-in-from-top-1 duration-300">
-                    Displays total revenue vs expenses each month. Revenue is from completed/delivered orders, while expenses are pulled from the expenses registry.
+                    Displays total revenue vs expenses per day. Revenue is from completed/delivered orders, while expenses are pulled from the expenses registry.
                   </p>
                 )}
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={220}>
-                  <BarChart data={revenueChartData.length > 0 ? revenueChartData : [{ month: "No data", revenue: 0, expenses: 0 }]}>
+                  <AreaChart data={revenueChartData.length > 0 ? revenueChartData : [{ date: "No data", revenue: 0, expenses: 0 }]}>
+                    <defs>
+                      <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                      </linearGradient>
+                      <linearGradient id="expGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#ef4444" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                    <XAxis dataKey="month" tick={{ fontSize: 11, fill: "#64748b" }} axisLine={false} tickLine={false} />
+                    <XAxis dataKey="date" tick={{ fontSize: 11, fill: "#64748b" }} axisLine={false} tickLine={false} />
                     <YAxis tick={{ fontSize: 11, fill: "#64748b" }} axisLine={false} tickLine={false} tickFormatter={(v) => `₦${(v / 1000).toFixed(0)}k`} />
                     <Tooltip contentStyle={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: "8px", color: "#000" }} formatter={(v: number, name: string) => [formatCurrency(v), name.charAt(0).toUpperCase() + name.slice(1)]} />
-                    <Bar dataKey="revenue" name="Revenue" fill="#22c55e" radius={[2, 2, 0, 0]} barSize={groupBy === 'day' ? 12 : 24} />
-                    <Bar dataKey="expenses" name="Expenses" fill="#ef4444" radius={[2, 2, 0, 0]} barSize={groupBy === 'day' ? 12 : 24} />
-                  </BarChart>
+                    <Area type="monotone" dataKey="revenue" stroke="#3b82f6" strokeWidth={2} fill="url(#revGrad)" />
+                    <Area type="monotone" dataKey="expenses" stroke="#ef4444" strokeWidth={2} fill="url(#expGrad)" />
+                  </AreaChart>
                 </ResponsiveContainer>
               </CardContent>
             </Card>
@@ -349,15 +335,15 @@ export default function Reports() {
                 <CardTitle className={cn("text-sm", exportMode ? "text-slate-700" : "print:text-slate-700")}>New Customers</CardTitle>
                 {hoveredCard === "customers" && !exportMode && (
                   <p className="text-xs text-muted-foreground mt-1 animate-in fade-in slide-in-from-top-1 duration-300">
-                    Shows the number of new customers added to the system each month based on their registration date.
+                    Shows the number of new customers added to the system per day based on their registration date.
                   </p>
                 )}
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={220}>
-                  <BarChart data={customerChartData.length > 0 ? customerChartData : [{ month: "No data", count: 0 }]}>
+                  <BarChart data={customerChartData.length > 0 ? customerChartData : [{ date: "No data", count: 0 }]}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                    <XAxis dataKey="month" tick={{ fontSize: 11, fill: "#64748b" }} axisLine={false} tickLine={false} />
+                    <XAxis dataKey="date" tick={{ fontSize: 11, fill: "#64748b" }} axisLine={false} tickLine={false} />
                     <YAxis tick={{ fontSize: 11, fill: "#64748b" }} axisLine={false} tickLine={false} />
                     <Tooltip contentStyle={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: "8px", color: "#000" }} />
                     <Bar dataKey="count" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
