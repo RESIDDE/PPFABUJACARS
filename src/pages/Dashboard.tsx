@@ -136,20 +136,43 @@ export default function Dashboard() {
     queryKey: ["dashboard-stats"],
     queryFn: async (): Promise<any> => {
       const [orders, customers, vehicles, products] = await Promise.all([
-        supabase.from("service_orders").select("status, total_amount"),
+        supabase.from("service_orders").select("status, total_amount, updated_at"),
         supabase.from("customers").select("id", { count: "exact" }),
         supabase.from("vehicles").select("id", { count: "exact" }),
         supabase.from("ppf_products").select("id, stock_quantity, reorder_level"),
       ]);
 
-      const activeJobs = orders.data?.filter(o => ["pending", "in_progress"].includes(o.status)).length ?? 0;
-      const monthRevenue = orders.data?.filter(o => o.status === "completed" || o.status === "delivered")
-        .reduce((sum: any, o: any) => sum + (o.total_amount ?? 0), 0) ?? 0;
+      const now = new Date();
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const startOfWeek = new Date(now);
+      startOfWeek.setDate(now.getDate() - now.getDay());
+      startOfWeek.setHours(0, 0, 0, 0);
+
+      let activeJobs = 0;
+      let monthRevenue = 0;
+      let carsDoneThisMonth = 0;
+      let carsDoneThisWeek = 0;
+
+      orders.data?.forEach(o => {
+        if (["pending", "in_progress"].includes(o.status)) {
+          activeJobs++;
+        }
+        if (o.status === "completed" || o.status === "delivered") {
+          monthRevenue += (o.total_amount || 0);
+          
+          const updatedAt = new Date(o.updated_at || now.toISOString());
+          if (updatedAt >= startOfMonth) carsDoneThisMonth++;
+          if (updatedAt >= startOfWeek) carsDoneThisWeek++;
+        }
+      });
+
       const lowStock = products.data?.filter(p => p.stock_quantity <= p.reorder_level).length ?? 0;
 
       return {
         activeJobs,
         monthRevenue,
+        carsDoneThisMonth,
+        carsDoneThisWeek,
         totalCustomers: customers.count ?? 0,
         totalVehicles: vehicles.count ?? 0,
         lowStockItems: lowStock,
@@ -256,7 +279,7 @@ export default function Dashboard() {
       </Card>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
         <StatCard
           icon={ClipboardList}
           label="Active Jobs"
@@ -297,6 +320,16 @@ export default function Dashboard() {
           iconBg="bg-amber-500/10"
           explanation="Number of inventory products that have fallen to or below their assigned low stock threshold."
           onClick={() => navigate("/inventory")}
+        />
+        <StatCard
+          icon={Car}
+          label="Cars Done"
+          value={`${stats?.carsDoneThisWeek ?? 0} / ${stats?.carsDoneThisMonth ?? 0}`}
+          sub="This Week / Month"
+          color="text-cyan-400"
+          iconBg="bg-cyan-500/10"
+          explanation="Number of cars successfully completed or delivered this week versus this month."
+          onClick={() => navigate("/service-orders")}
         />
       </div>
 
