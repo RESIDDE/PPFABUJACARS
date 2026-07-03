@@ -31,6 +31,8 @@ const schema = z.object({
   amount: z.coerce.number().optional(),
   other_expenses: z.array(z.object({
     job_description: z.string().min(1, "Expense detail is required"),
+    quantity: z.coerce.number().min(1, "Quantity must be at least 1").default(1),
+    price: z.coerce.number().min(0, "Price must be positive").default(0),
     amount: z.coerce.number().min(0, "Amount must be positive")
   })).optional()
 }).superRefine((data, ctx) => {
@@ -57,6 +59,9 @@ const schema = z.object({
       data.other_expenses.forEach((exp, index) => {
         if (!exp.job_description) {
           ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Expense detail is required", path: ["other_expenses", index, "job_description"] });
+        }
+        if (exp.price === undefined || exp.price <= 0) {
+          ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Price must be positive", path: ["other_expenses", index, "price"] });
         }
         if (exp.amount === undefined || exp.amount <= 0) {
           ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Amount must be positive", path: ["other_expenses", index, "amount"] });
@@ -258,12 +263,12 @@ export default function Expenses() {
   const totalPages = Math.ceil(expenses.length / PAGE_SIZE);
   const paginated = expenses.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
-  const { register, handleSubmit, reset, setValue, watch, control, formState: { errors } } = useForm<FormData>({
+  const { register, handleSubmit, reset, setValue, watch, control, getValues, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: {
       expense_type: "job",
       expense_date: format(new Date(), "yyyy-MM-dd"),
-      other_expenses: [{ job_description: "", amount: 0 }],
+      other_expenses: [{ job_description: "", quantity: 1, price: 0, amount: 0 }],
     }
   });
 
@@ -343,7 +348,7 @@ export default function Expenses() {
       technician_name: "",
       job_description: "",
       amount: 0,
-      other_expenses: [{ job_description: "", amount: 0 }],
+      other_expenses: [{ job_description: "", quantity: 1, price: 0, amount: 0 }],
     }); 
     setSelectedCustomer("");
     setEditingId(null); 
@@ -361,7 +366,11 @@ export default function Expenses() {
       technician_name: e.technician_name || "",
       job_description: e.expense_type === "job" ? e.job_description : "",
       amount: e.expense_type === "job" ? e.amount : 0,
-      other_expenses: e.expense_type === "other" ? (parseOtherExpenses(e.job_description) || [{ job_description: e.job_description, amount: e.amount }]) : [{ job_description: "", amount: 0 }],
+      other_expenses: e.expense_type === "other" ? (parseOtherExpenses(e.job_description)?.map((exp: any) => ({
+        ...exp,
+        quantity: exp.quantity || 1,
+        price: exp.price ?? exp.amount ?? 0
+      })) || [{ job_description: e.job_description, quantity: 1, price: e.amount || 0, amount: e.amount || 0 }]) : [{ job_description: "", quantity: 1, price: 0, amount: 0 }],
     });
     setEditingId(e.id); 
     setDialogOpen(true);
@@ -664,7 +673,10 @@ export default function Expenses() {
                           <div className="mt-2 space-y-1.5 p-2 bg-muted/20 rounded-md border border-border/40">
                             {parsedOther.map((subItem: any, idx: number) => (
                               <div key={idx} className="flex justify-between items-center text-xs">
-                                <span className="text-muted-foreground truncate mr-2" title={subItem.job_description}>• {subItem.job_description}</span>
+                                <span className="text-muted-foreground truncate mr-2" title={subItem.job_description}>
+                                  • {subItem.job_description}
+                                  {subItem.quantity && subItem.quantity > 1 ? ` (x${subItem.quantity})` : ""}
+                                </span>
                                 <span className="font-medium shrink-0">{formatCurrency(subItem.amount)}</span>
                               </div>
                             ))}
@@ -840,13 +852,40 @@ export default function Expenses() {
                           />
                           {errors.other_expenses?.[index]?.job_description && <p className="text-xs text-destructive">{errors.other_expenses[index]?.job_description?.message}</p>}
                         </div>
-                        <div className="space-y-1">
-                          <Label>Amount (₦) *</Label>
-                          <AmountInput 
-                            value={watch(`other_expenses.${index}.amount`)} 
-                            onChange={(val) => setValue(`other_expenses.${index}.amount`, val, { shouldValidate: true })} 
-                          />
-                          {errors.other_expenses?.[index]?.amount && <p className="text-xs text-destructive">{errors.other_expenses[index]?.amount?.message}</p>}
+                        <div className="grid grid-cols-3 gap-3">
+                          <div className="space-y-1">
+                            <Label>Quantity *</Label>
+                            <Input 
+                              type="number"
+                              min="1"
+                              {...register(`other_expenses.${index}.quantity`, {
+                                onChange: (e) => {
+                                  const qty = Number(e.target.value) || 0;
+                                  const price = getValues(`other_expenses.${index}.price`) || 0;
+                                  setValue(`other_expenses.${index}.amount`, qty * price, { shouldValidate: true });
+                                }
+                              })} 
+                            />
+                            {errors.other_expenses?.[index]?.quantity && <p className="text-xs text-destructive">{errors.other_expenses[index]?.quantity?.message}</p>}
+                          </div>
+                          <div className="space-y-1">
+                            <Label>Unit Price (₦) *</Label>
+                            <AmountInput 
+                              value={watch(`other_expenses.${index}.price`)} 
+                              onChange={(val) => {
+                                setValue(`other_expenses.${index}.price`, val, { shouldValidate: true });
+                                const qty = getValues(`other_expenses.${index}.quantity`) || 0;
+                                setValue(`other_expenses.${index}.amount`, qty * val, { shouldValidate: true });
+                              }} 
+                            />
+                            {errors.other_expenses?.[index]?.price && <p className="text-xs text-destructive">{errors.other_expenses[index]?.price?.message}</p>}
+                          </div>
+                          <div className="space-y-1">
+                            <Label>Subtotal (₦)</Label>
+                            <div className="flex h-10 w-full items-center rounded-md border border-input bg-muted px-3 py-2 text-sm text-muted-foreground cursor-not-allowed">
+                              {new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN' }).format(watch(`other_expenses.${index}.amount`) || 0)}
+                            </div>
+                          </div>
                         </div>
                       </div>
                       
@@ -869,7 +908,7 @@ export default function Expenses() {
                       type="button" 
                       variant="outline" 
                       size="sm" 
-                      onClick={() => appendOtherExpense({ job_description: "", amount: 0 })}
+                      onClick={() => appendOtherExpense({ job_description: "", quantity: 1, price: 0, amount: 0 })}
                     >
                       <Plus className="h-4 w-4 mr-2" /> Add Another
                     </Button>
@@ -999,7 +1038,7 @@ export default function Expenses() {
                                         <div className="space-y-1">
                                           {parsed.map((item: any, idx: number) => (
                                             <div key={idx} className="text-[10px]">
-                                              • {item.job_description} ({formatCurrency(item.amount)})
+                                              • {item.job_description} {item.quantity && item.quantity > 1 ? `(x${item.quantity} @ ${formatCurrency(item.price || item.amount)})` : ""} = {formatCurrency(item.amount)}
                                             </div>
                                           ))}
                                         </div>
