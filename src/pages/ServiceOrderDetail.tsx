@@ -36,6 +36,7 @@ const otherServiceSchema = z.object({
   quantity: z.coerce.number().optional(),
   amount: z.coerce.number().optional(),
   notes: z.string().optional(),
+  show_price: z.boolean().default(true),
 });
 type OtherServiceForm = z.infer<typeof otherServiceSchema>;
 
@@ -79,8 +80,9 @@ export default function ServiceOrderDetail() {
     resolver: zodResolver(itemSchema),
   });
 
-  const { register: registerOther, control: controlOther, handleSubmit: handleOtherSubmit, reset: resetOther, formState: { errors: otherErrors } } = useForm<OtherServiceForm>({
+  const { register: registerOther, control: controlOther, handleSubmit: handleOtherSubmit, reset: resetOther, watch: watchOther, setValue: setValueOther, formState: { errors: otherErrors } } = useForm<OtherServiceForm>({
     resolver: zodResolver(otherServiceSchema),
+    defaultValues: { show_price: true }
   });
 
   const statusMutation = useMutation({
@@ -141,6 +143,12 @@ export default function ServiceOrderDetail() {
       const qty = data.quantity ?? 1;
       const amt = data.amount ?? 0;
       const line_total = amt * qty;
+      
+      let finalNotes = data.notes || "";
+      if (!data.show_price) {
+        finalNotes = finalNotes ? `${finalNotes} [HIDE_PRICE]` : "[HIDE_PRICE]";
+      }
+
       const { error } = await supabase.from("service_order_items").insert({
         service_order_id: id!,
         // @ts-ignore: schema type not yet regenerated
@@ -149,7 +157,7 @@ export default function ServiceOrderDetail() {
         quantity_used: qty,
         unit_price: amt,
         line_total,
-        notes: data.notes || null,
+        notes: finalNotes || null,
       });
       if (error) throw error;
 
@@ -592,6 +600,25 @@ export default function ServiceOrderDetail() {
             <div className="space-y-2">
               <Label htmlFor="other-notes">Notes</Label>
               <Input id="other-notes" placeholder="Optional notes..." {...registerOther("notes")} />
+            </div>
+
+            <div className="flex items-center space-x-2 pt-2">
+              <Controller
+                control={controlOther}
+                name="show_price"
+                render={({ field }) => (
+                  <button
+                    type="button"
+                    onClick={() => field.onChange(!field.value)}
+                    className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none ${field.value ? "bg-primary" : "bg-muted-foreground/30"}`}
+                  >
+                    <span className={`inline-block h-3 w-3 transform rounded-full bg-white shadow transition-transform ${field.value ? "translate-x-4" : "translate-x-1"}`} />
+                  </button>
+                )}
+              />
+              <Label className="text-sm font-normal cursor-pointer" onClick={() => setValueOther("show_price", !watchOther("show_price"))}>
+                Show amount on invoice
+              </Label>
             </div>
             
             <DialogFooter>

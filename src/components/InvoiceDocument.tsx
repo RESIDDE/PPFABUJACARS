@@ -387,14 +387,19 @@ export default function InvoiceDocument({ invoiceId, onClose, hideHeader }: { in
                             )}
                           </p>
                           {item.item_type === 'other' ? (
-                            <p className="text-[10px] text-muted-foreground mt-0.5">Other Service</p>
+                            <>
+                              <p className="text-[10px] text-muted-foreground mt-0.5">Other Service</p>
+                              {item.notes && item.notes.replace('[HIDE_PRICE]', '').trim() && (
+                                <p className="text-[10px] text-muted-foreground mt-0.5">{item.notes.replace('[HIDE_PRICE]', '').trim()}</p>
+                              )}
+                            </>
                           ) : (
                             <p className="text-[10px] text-muted-foreground mt-0.5">{item.ppf_products?.brand} {item.ppf_products?.name}</p>
                           )}
                         </td>
                         <td className="py-2.5 text-right">{item.quantity_used}</td>
-                        <td className="py-2.5 text-right">{formatCurrency(item.unit_price)}</td>
-                        <td className="py-2.5 text-right font-semibold">{formatCurrency(item.line_total)}</td>
+                        <td className="py-2.5 text-right">{item.notes?.includes('[HIDE_PRICE]') ? '—' : formatCurrency(item.unit_price)}</td>
+                        <td className="py-2.5 text-right font-semibold">{item.notes?.includes('[HIDE_PRICE]') ? 'Included' : formatCurrency(item.line_total)}</td>
                       </tr>
                     ))
                   ) : (
