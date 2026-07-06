@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/dialog";
 import { formatDate, confirmDelete } from "@/lib/utils";
 import { Pagination } from "@/components/ui/pagination";
+import CustomerHistoryDialog from "@/components/CustomerHistoryDialog";
 
 const PAGE_SIZE = 10;
 
@@ -33,6 +34,8 @@ export default function Customers() {
   const [page, setPage] = useState(1);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [historyDialogOpen, setHistoryDialogOpen] = useState(false);
+  const [selectedHistoryCustomerId, setSelectedHistoryCustomerId] = useState<string | undefined>(undefined);
   const qc = useQueryClient();
 
   const { data: customers = [], isLoading } = useQuery({
@@ -83,10 +86,16 @@ export default function Customers() {
   });
 
   const openAdd = () => { reset(); setEditingId(null); setDialogOpen(true); };
-  const openEdit = (c: Record<string, unknown>) => {
+  const openEdit = (e: React.MouseEvent, c: Record<string, unknown>) => {
+    e.stopPropagation();
     reset({ full_name: c.full_name as string, phone: c.phone as string, email: (c.email as string) ?? "", address: (c.address as string) ?? "", notes: (c.notes as string) ?? "" });
     setEditingId(c.id as string);
     setDialogOpen(true);
+  };
+
+  const openHistory = (customerId: string) => {
+    setSelectedHistoryCustomerId(customerId);
+    setHistoryDialogOpen(true);
   };
 
   const totalPages = Math.ceil(customers.length / PAGE_SIZE);
@@ -125,7 +134,7 @@ export default function Customers() {
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {paginated.map((c: any) => (
-              <Card key={c.id} className="hover:border-primary/30 transition-colors group">
+              <Card key={c.id} className="hover:border-primary/50 cursor-pointer transition-colors group" onClick={() => openHistory(c.id)}>
                 <CardContent className="p-5">
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex items-center gap-3">
@@ -138,8 +147,8 @@ export default function Customers() {
                       </div>
                     </div>
                     <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button onClick={() => openEdit(c as unknown as Record<string, unknown>)} className="p-1.5 rounded hover:bg-muted transition-colors"><Pencil className="h-3.5 w-3.5" /></button>
-                      <button onClick={() => { if (confirmDelete("customer")) deleteMutation.mutate(c.id); }} className="p-1.5 rounded hover:bg-destructive/10 hover:text-destructive transition-colors"><Trash2 className="h-3.5 w-3.5" /></button>
+                      <button onClick={(e) => openEdit(e, c as unknown as Record<string, unknown>)} className="p-1.5 rounded hover:bg-muted transition-colors"><Pencil className="h-3.5 w-3.5" /></button>
+                      <button onClick={(e) => { e.stopPropagation(); if (confirmDelete("customer")) deleteMutation.mutate(c.id); }} className="p-1.5 rounded hover:bg-destructive/10 hover:text-destructive transition-colors"><Trash2 className="h-3.5 w-3.5" /></button>
                     </div>
                   </div>
                   <div className="space-y-1.5 text-xs text-muted-foreground">
@@ -191,6 +200,12 @@ export default function Customers() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <CustomerHistoryDialog 
+        open={historyDialogOpen} 
+        onOpenChange={setHistoryDialogOpen} 
+        initialCustomerId={selectedHistoryCustomerId} 
+      />
     </div>
   );
 }

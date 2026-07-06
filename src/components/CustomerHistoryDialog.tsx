@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -10,8 +10,14 @@ import { isSameWeek, isSameMonth, subMonths } from "date-fns";
 import { Loader2, FileText, User } from "lucide-react";
 import BatchInvoiceDocument from "./BatchInvoiceDocument";
 
-export default function CustomerHistoryDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
+export default function CustomerHistoryDialog({ open, onOpenChange, initialCustomerId }: { open: boolean; onOpenChange: (open: boolean) => void; initialCustomerId?: string }) {
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>("all");
+
+  useEffect(() => {
+    if (open) {
+      setSelectedCustomerId(initialCustomerId || "all");
+    }
+  }, [open, initialCustomerId]);
   const [timeFilter, setTimeFilter] = useState<string>("all");
   const [batchInvoiceIds, setBatchInvoiceIds] = useState<string[] | null>(null);
 
@@ -27,11 +33,13 @@ export default function CustomerHistoryDialog({ open, onOpenChange }: { open: bo
     queryKey: ["customer-history", selectedCustomerId],
     queryFn: async () => {
       if (selectedCustomerId === "all" || !selectedCustomerId) return [];
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("service_orders")
-        .select("*, invoices(*), vehicles(make, model, plate_number)")
+        .select("*, invoices(*), service_order_vehicles(vehicles(make, model, plate_number))")
         .eq("customer_id", selectedCustomerId)
         .order("created_at", { ascending: false });
+      
+      if (error) console.error("Error fetching customer history:", error);
       return data || [];
     },
     enabled: selectedCustomerId !== "all" && !!selectedCustomerId
@@ -54,7 +62,11 @@ export default function CustomerHistoryDialog({ open, onOpenChange }: { open: bo
     const ids: string[] = [];
     filteredHistory.forEach((order: any) => {
       if (order.invoices && order.invoices.length > 0) {
-        order.invoices.forEach((inv: any) => ids.push(inv.id));
+        order.invoices.forEach((inv: any) => {
+          if (!ids.includes(inv.id)) {
+            ids.push(inv.id);
+          }
+        });
       }
     });
     setBatchInvoiceIds(ids);
@@ -99,7 +111,18 @@ export default function CustomerHistoryDialog({ open, onOpenChange }: { open: bo
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto mt-4 border rounded-md">
+          {selectedCustomerId !== "all" && filteredHistory.length > 0 && (
+            <div className="flex flex-wrap gap-3 px-4 py-2 mt-2">
+              <div className="bg-emerald-500/10 text-emerald-600 px-3 py-1.5 rounded-md border border-emerald-500/20 text-xs font-semibold uppercase tracking-wider">
+                Completed/Delivered: {filteredHistory.filter((o: any) => o.status === 'completed' || o.status === 'delivered').length}
+              </div>
+              <div className="bg-amber-500/10 text-amber-600 px-3 py-1.5 rounded-md border border-amber-500/20 text-xs font-semibold uppercase tracking-wider">
+                Pending/In Progress: {filteredHistory.filter((o: any) => o.status === 'pending' || o.status === 'in_progress').length}
+              </div>
+            </div>
+          )}
+
+          <div className="flex-1 overflow-y-auto mt-2 border rounded-md">
             {isLoading ? (
               <div className="flex justify-center p-12"><Loader2 className="h-8 w-8 animate-spin text-primary opacity-50" /></div>
             ) : selectedCustomerId === "all" ? (
@@ -123,22 +146,29 @@ export default function CustomerHistoryDialog({ open, onOpenChange }: { open: bo
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
-                    {filteredHistory.map((order: any) => (
-                      <tr key={order.id} className="hover:bg-muted/30 transition-colors">
-                        <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">{formatDate(order.intake_date)}</td>
-                        <td className="px-4 py-3 font-mono text-primary">{order.order_number}</td>
-                        <td className="px-4 py-3 whitespace-nowrap">{order.vehicles ? `${order.vehicles.make} ${order.vehicles.model}` : '—'}</td>
-                        <td className="px-4 py-3 capitalize"><span className="bg-muted px-2 py-1 rounded-md text-xs">{order.status.replace('_', ' ')}</span></td>
-                        <td className="px-4 py-3 text-right font-medium">{formatCurrency(order.total_amount)}</td>
-                        <td className="px-4 py-3 text-center">
-                          {order.invoices && order.invoices.length > 0 ? (
-                            <span className="text-xs bg-primary/10 text-primary px-2.5 py-1 font-bold rounded-full">{order.invoices.length}</span>
-                          ) : (
-                            <span className="text-xs text-muted-foreground">—</span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
+                    {filteredHistory.map((order: any) => {
+                      const vehicles = order.service_order_vehicles?.map((sov: any) => sov.vehicles).filter(Boolean) || [];
+                      const vehiclesText = vehicles.length > 0 
+                        ? vehicles.map((v: any) => `${v.make} ${v.model}`).join(", ")
+                        : "—";
+                      
+                      return (
+                        <tr key={order.id} className="hover:bg-muted/30 transition-colors">
+                          <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">{formatDate(order.intake_date)}</td>
+                          <td className="px-4 py-3 font-mono text-primary">{order.order_number}</td>
+                          <td className="px-4 py-3 whitespace-nowrap max-w-[200px] truncate" title={vehiclesText}>{vehiclesText}</td>
+                          <td className="px-4 py-3 capitalize"><span className="bg-muted px-2 py-1 rounded-md text-xs">{order.status.replace('_', ' ')}</span></td>
+                          <td className="px-4 py-3 text-right font-medium">{formatCurrency(order.total_amount)}</td>
+                          <td className="px-4 py-3 text-center">
+                            {order.invoices && order.invoices.length > 0 ? (
+                              <span className="text-xs bg-primary/10 text-primary px-2.5 py-1 font-bold rounded-full">{order.invoices.length}</span>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">—</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
