@@ -359,6 +359,8 @@ export default function InvoiceDocument({ invoiceId, onClose, hideHeader }: { in
                   <tr className="border-b-2 border-border/80">
                     <th className="text-left py-2 font-semibold text-muted-foreground">Description</th>
                     <th className="text-right py-2 font-semibold text-muted-foreground">Qty</th>
+                    <th className="text-right py-2 font-semibold text-muted-foreground">Unit Price</th>
+                    <th className="text-right py-2 font-semibold text-muted-foreground">Amount</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border/40">
@@ -369,6 +371,8 @@ export default function InvoiceDocument({ invoiceId, onClose, hideHeader }: { in
                         {invoice.notes && <p className="text-[10px] text-muted-foreground mt-0.5">{invoice.notes}</p>}
                       </td>
                       <td className="py-2.5 text-right">1</td>
+                      <td className="py-2.5 text-right">{formatCurrency(invoice.total_amount)}</td>
+                      <td className="py-2.5 text-right font-semibold">{formatCurrency(invoice.total_amount)}</td>
                     </tr>
                   ) : items.length > 0 ? (
                     items.map((item: any) => (
@@ -389,11 +393,13 @@ export default function InvoiceDocument({ invoiceId, onClose, hideHeader }: { in
                           )}
                         </td>
                         <td className="py-2.5 text-right">{item.quantity_used}</td>
+                        <td className="py-2.5 text-right">{formatCurrency(item.unit_price)}</td>
+                        <td className="py-2.5 text-right font-semibold">{formatCurrency(item.line_total)}</td>
                       </tr>
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={2} className="py-6 text-center text-muted-foreground">No line items</td>
+                      <td colSpan={4} className="py-6 text-center text-muted-foreground">No line items</td>
                     </tr>
                   )}
                 </tbody>
