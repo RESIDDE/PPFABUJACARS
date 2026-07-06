@@ -119,8 +119,23 @@ export default function Vehicles() {
     return filtered;
   }, [vehiclesRaw, search, filterMake, filterLocation, filterDate]);
 
-  const totalPages = Math.ceil(vehicles.length / PAGE_SIZE);
-  const paginated = vehicles.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const groupedVehicles = useMemo(() => {
+    const groups: Record<string, { customer: any, vehicles: any[] }> = {};
+    vehicles.forEach((v: any) => {
+      const cId = v.customer_id;
+      if (!groups[cId]) {
+        groups[cId] = {
+          customer: v.customers,
+          vehicles: []
+        };
+      }
+      groups[cId].vehicles.push(v);
+    });
+    return Object.values(groups);
+  }, [vehicles]);
+
+  const totalPages = Math.ceil(groupedVehicles.length / PAGE_SIZE);
+  const paginated = groupedVehicles.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   const { data: customers = [] } = useQuery({
     queryKey: ["customers-list"],
@@ -303,31 +318,44 @@ export default function Vehicles() {
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {paginated.map((v: any) => {
-              const customer = v.customers as { full_name: string; phone: string } | null;
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {paginated.map((group: any) => {
+              const customer = group.customer;
+              const customerVehicles = group.vehicles;
               return (
-                <Card key={v.id} className="hover:border-primary/30 transition-colors group">
+                <Card key={customerVehicles[0].customer_id} className="hover:border-primary/30 transition-colors group">
                   <CardContent className="p-5">
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-lg bg-blue-500/10 flex items-center justify-center">
-                          <Car className="h-5 w-5 text-blue-400" />
-                        </div>
-                        <div>
-                          <p className="font-semibold text-sm">{v.make} {v.model}</p>
-                          <p className="text-xs text-muted-foreground">{v.year ?? "—"} · {v.color ?? "Unknown color"}</p>
-                        </div>
+                    <div className="flex items-center gap-3 mb-4 border-b border-border/50 pb-3">
+                      <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">
+                        {customer ? customer.full_name.charAt(0) : "?"}
                       </div>
-                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button onClick={() => openEdit(v)} className="p-1.5 rounded hover:bg-muted"><Pencil className="h-3.5 w-3.5" /></button>
-                        <button onClick={() => { if (confirmDelete("vehicle")) deleteMutation.mutate(v.id); }} className="p-1.5 rounded hover:bg-destructive/10 hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button>
+                      <div>
+                        <p className="font-semibold text-sm">{customer ? customer.full_name : "Unknown Customer"}</p>
+                        <p className="text-xs text-muted-foreground">{customerVehicles.length} vehicle{customerVehicles.length !== 1 ? 's' : ''}</p>
                       </div>
                     </div>
-                    <div className="space-y-1 text-xs text-muted-foreground">
-                      {v.plate_number && <div className="font-mono bg-muted/50 rounded px-2 py-1 text-foreground inline-block">{v.plate_number}</div>}
-                      {customer && <p className="mt-2">👤 {customer.full_name}</p>}
-                      <p>Added {formatDate(v.created_at)}</p>
+                    
+                    <div className="space-y-3">
+                      {customerVehicles.map((v: any) => (
+                        <div key={v.id} className="flex items-start justify-between p-3 bg-muted/30 rounded-lg border border-border/50 group/vehicle transition-colors hover:border-border">
+                          <div className="flex items-start gap-3">
+                            <div className="h-8 w-8 rounded-md bg-blue-500/10 flex items-center justify-center shrink-0">
+                              <Car className="h-4 w-4 text-blue-400" />
+                            </div>
+                            <div>
+                              <p className="font-semibold text-sm leading-tight">{v.make} {v.model}</p>
+                              <div className="flex items-center gap-2 mt-1">
+                                {v.plate_number && <span className="font-mono bg-muted rounded px-1.5 py-0.5 text-[10px] text-foreground">{v.plate_number}</span>}
+                                <span className="text-[10px] text-muted-foreground">{v.year ?? "—"} · {v.color ?? "Unknown color"}</span>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex gap-1 opacity-0 group-hover/vehicle:opacity-100 transition-opacity">
+                            <button onClick={() => openEdit(v)} className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground"><Pencil className="h-3 w-3" /></button>
+                            <button onClick={() => { if (confirmDelete("vehicle")) deleteMutation.mutate(v.id); }} className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive"><Trash2 className="h-3 w-3" /></button>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </CardContent>
                 </Card>
