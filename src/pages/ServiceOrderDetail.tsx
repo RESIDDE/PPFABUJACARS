@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft, Plus, Trash2, FileText, User, Car,
-  Calendar, Wrench, CheckCircle2, Loader2, MapPin, Edit
+  Calendar, Wrench, CheckCircle2, Loader2, MapPin, Edit, History
 } from "lucide-react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -20,6 +20,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { formatDate, formatCurrency, getStatusLabel, generateInvoiceNumber } from "@/lib/utils";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import type { ServiceOrderStatus } from "@/integrations/supabase/types";
+import CustomerHistoryDialog from "@/components/CustomerHistoryDialog";
 
 const itemSchema = z.object({
   ppf_product_id: z.string().min(1, "Product is required"),
@@ -55,6 +56,9 @@ export default function ServiceOrderDetail() {
 
   // Parking Invoice State
   const [parkingInvoiceOpen, setParkingInvoiceOpen] = useState(false);
+  
+  // History State
+  const [historyDialogOpen, setHistoryDialogOpen] = useState(false);
 
   const { data: order, isLoading } = useQuery({
     queryKey: ["service-order", id],
@@ -311,7 +315,12 @@ export default function ServiceOrderDetail() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Card>
               <CardContent className="p-5">
-                <div className="flex items-center gap-2 mb-3 text-muted-foreground"><User className="h-4 w-4" /><span className="text-xs font-semibold uppercase tracking-wider">Customer</span></div>
+                <div className="flex items-center justify-between mb-3 text-muted-foreground">
+                  <div className="flex items-center gap-2"><User className="h-4 w-4" /><span className="text-xs font-semibold uppercase tracking-wider">Customer</span></div>
+                  <Button variant="outline" size="sm" className="h-7 text-[10px] px-2 h-auto py-1" onClick={() => setHistoryDialogOpen(true)}>
+                    <History className="h-3 w-3 mr-1" /> View History
+                  </Button>
+                </div>
                 <p className="font-semibold">{customer?.full_name}</p>
                 <p className="text-sm text-muted-foreground mt-1">{customer?.phone}</p>
                 {customer?.email && <p className="text-sm text-muted-foreground">{customer.email}</p>}
@@ -746,6 +755,12 @@ export default function ServiceOrderDetail() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <CustomerHistoryDialog 
+        open={historyDialogOpen} 
+        onOpenChange={setHistoryDialogOpen} 
+        initialCustomerId={order?.customer_id} 
+      />
     </div>
   );
 }
