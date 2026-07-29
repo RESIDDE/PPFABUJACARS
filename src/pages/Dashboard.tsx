@@ -123,11 +123,12 @@ export default function Dashboard() {
   const { data: ordersData } = useQuery({
     queryKey: ["dashboard-orders"],
     queryFn: async (): Promise<any> => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("service_orders")
-        .select("*, customers(full_name), vehicles(make, model, plate_number)")
+        .select("*, customers(full_name), service_order_vehicles(vehicles(make, model, plate_number))")
         .order("created_at", { ascending: false })
         .limit(5);
+      if (error) console.error("Error fetching dashboard orders:", error);
       return data ?? [];
     },
   });
@@ -135,11 +136,12 @@ export default function Dashboard() {
   const { data: stats } = useQuery({
     queryKey: ["dashboard-stats"],
     queryFn: async (): Promise<any> => {
-      const [orders, customers, vehicles, products] = await Promise.all([
-        supabase.from("service_orders").select("status, total_amount, updated_at"),
+      const [orders, customers, vehicles, products, invoices] = await Promise.all([
+        supabase.from("service_orders").select("id, status, total_amount, created_at, updated_at"),
         supabase.from("customers").select("id", { count: "exact" }),
         supabase.from("vehicles").select("id", { count: "exact" }),
         supabase.from("ppf_products").select("id, stock_quantity, reorder_level"),
+        supabase.from("invoices").select("id, status, total_amount, amount_paid, created_at, issued_date"),
       ]);
 
       const now = new Date();
@@ -148,25 +150,34 @@ export default function Dashboard() {
       startOfWeek.setDate(now.getDate() - now.getDay());
       startOfWeek.setHours(0, 0, 0, 0);
 
+      const ordersList = (orders.data && orders.data.length > 0)
+        ? orders.data
+        : (invoices.data || []).map((inv: any) => ({
+            id: inv.id,
+            status: inv.status === 'paid' ? 'completed' : 'in_progress',
+            total_amount: Number(inv.amount_paid) > 0 ? Number(inv.amount_paid) : Number(inv.total_amount || 0),
+            created_at: inv.created_at || inv.issued_date,
+            updated_at: inv.created_at || inv.issued_date
+          }));
+
       let activeJobs = 0;
       let monthRevenue = 0;
       let carsDoneThisMonth = 0;
       let carsDoneThisWeek = 0;
 
-      orders.data?.forEach(o => {
+      ordersList.forEach((o: any) => {
         if (["pending", "in_progress"].includes(o.status)) {
           activeJobs++;
         }
         if (o.status === "completed" || o.status === "delivered") {
-          monthRevenue += (o.total_amount || 0);
-          
-          const updatedAt = new Date(o.updated_at || now.toISOString());
+          monthRevenue += (Number(o.total_amount) || 0);
+          const updatedAt = new Date(o.updated_at || o.created_at || now.toISOString());
           if (updatedAt >= startOfMonth) carsDoneThisMonth++;
           if (updatedAt >= startOfWeek) carsDoneThisWeek++;
         }
       });
 
-      const lowStock = products.data?.filter(p => p.stock_quantity <= p.reorder_level).length ?? 0;
+      const lowStock = products.data?.filter(p => (p.stock_quantity ?? 0) <= (p.reorder_level ?? 5)).length ?? 0;
 
       return {
         activeJobs,

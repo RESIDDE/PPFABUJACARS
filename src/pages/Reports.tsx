@@ -32,8 +32,9 @@ export default function Reports() {
   const { data: ordersDataRaw = [] } = useQuery({
     queryKey: ["reports-orders"],
     queryFn: async (): Promise<any> => {
-      const { data } = await supabase.from("service_orders")
-        .select("id, order_number, status, total_amount, created_at, technician_name, customers(full_name, phone), vehicles(id, make, model, year, plate_number, vin, color), service_order_vehicles(vehicles(id, make, model, year, plate_number, vin, color))");
+      const { data, error } = await supabase.from("service_orders")
+        .select("id, order_number, status, total_amount, created_at, intake_date, technician_name, customers(full_name, phone), service_order_vehicles(vehicles(id, make, model, year, plate_number, vin, color))");
+      if (error) console.error("Error fetching reports service orders:", error);
       return data ?? [];
     },
   });
@@ -63,6 +64,15 @@ export default function Reports() {
     },
   });
 
+  const { data: invoicesDataRaw = [] } = useQuery({
+    queryKey: ["reports-invoices"],
+    queryFn: async (): Promise<any> => {
+      const { data } = await supabase.from("invoices")
+        .select("id, invoice_number, status, amount_paid, issued_date, created_at, customers(full_name, phone)");
+      return data ?? [];
+    },
+  });
+
   const now = new Date();
   const filterByDate = (dateStr?: string) => {
     if (!dateStr) return true;
@@ -81,68 +91,39 @@ export default function Reports() {
     return true;
   };
 
-  const DEFAULT_BASELINE_ORDERS = [
-    { id: "b-1", order_number: "SO-0023", status: "completed", total_amount: 14200000, created_at: "2026-07-25T10:00:00Z", customers: { full_name: "Alhaji Danladi Usman" }, vehicles: { make: "Mercedes-Maybach", model: "S680", year: 2024, plate_number: "ABJ-680-MA", vin: "W1K2231801A948301" } },
-    { id: "b-2", order_number: "SO-0022", status: "completed", total_amount: 12500000, created_at: "2026-07-24T14:30:00Z", customers: { full_name: "Chief Femi Adebayo" }, vehicles: { make: "Lamborghini", model: "Urus Performante", year: 2024, plate_number: "RBC-911-UR", vin: "ZHWUU1ZD9KLA04921" } },
-    { id: "b-3", order_number: "SO-0021", status: "completed", total_amount: 11000000, created_at: "2026-07-22T09:15:00Z", customers: { full_name: "Sen. Charles Okonjo" }, vehicles: { make: "Rolls-Royce", model: "Cullinan Black Badge", year: 2023, plate_number: "ABJ-001-RR", vin: "SCA664D05JU194021" } },
-    { id: "b-4", order_number: "SO-0020", status: "completed", total_amount: 10500000, created_at: "2026-07-20T11:00:00Z", customers: { full_name: "Dr. Ibrahim Bello" }, vehicles: { make: "Ferrari", model: "F8 Tributo", year: 2023, plate_number: "KJA-888-FE", vin: "ZFF83CBA000259102" } },
-    { id: "b-5", order_number: "SO-0019", status: "completed", total_amount: 9200000, created_at: "2026-07-18T16:00:00Z", customers: { full_name: "Engr. Nnamdi Eze" }, vehicles: { make: "Porsche", model: "911 GT3 RS", year: 2024, plate_number: "LAG-911-GT", vin: "WP0AF2A97RS204910" } },
-    { id: "b-6", order_number: "SO-0018", status: "completed", total_amount: 8500000, created_at: "2026-07-16T13:45:00Z", customers: { full_name: "Hajiya Aisha Mohammed" }, vehicles: { make: "Mercedes-AMG", model: "G63 4x4²", year: 2024, plate_number: "ABJ-463-GG", vin: "W4N4632701X948102" } },
-    { id: "b-7", order_number: "SO-0017", status: "completed", total_amount: 7800000, created_at: "2026-07-15T10:30:00Z", customers: { full_name: "Mr. Tunde Bakare" }, vehicles: { make: "Range Rover", model: "Autobiography LWB", year: 2024, plate_number: "ABJ-777-RR", vin: "SALWR2RV9GA948102" } },
-    { id: "b-8", order_number: "SO-0016", status: "completed", total_amount: 6800000, created_at: "2026-07-12T08:30:00Z", customers: { full_name: "Barr. Musa Garba" }, vehicles: { make: "BMW", model: "M5 CS Satin", year: 2023, plate_number: "ABJ-505-CS", vin: "WBS81CH080CJ94019" } },
-    { id: "b-9", order_number: "SO-0015", status: "completed", total_amount: 5200000, created_at: "2026-07-10T12:00:00Z", customers: { full_name: "Capt. Emeka Obi" }, vehicles: { make: "Audi", model: "RS Q8 Ceramic PPF", year: 2023, plate_number: "BWR-404-RS", vin: "WAUZZZF27MD940192" } },
-    { id: "b-10", order_number: "SO-0014", status: "completed", total_amount: 4500000, created_at: "2026-07-08T15:20:00Z", customers: { full_name: "Mrs. Halima Abubakar" }, vehicles: { make: "Bentley", model: "Continental GT", year: 2022, plate_number: "KAD-101-CG", vin: "SCBCB6ZA0DC094819" } },
-    { id: "b-11", order_number: "SO-0013", status: "completed", total_amount: 4525000, created_at: "2026-07-05T09:00:00Z", customers: { full_name: "Alhaji Umar Farouk" }, vehicles: { make: "Cadillac", model: "Escalade V-Series", year: 2023, plate_number: "ABJ-600-ES", vin: "1GYS4KLJ0PR940192" } },
-    { id: "b-12", order_number: "SO-0012", status: "completed", total_amount: 0, created_at: "2026-07-04T10:00:00Z", customers: { full_name: "Alhaji Danladi Usman" }, vehicles: { make: "Mercedes-Maybach", model: "S680", year: 2024, plate_number: "ABJ-680-MA", vin: "W1K2231801A948301" } },
-    { id: "b-13", order_number: "SO-0011", status: "completed", total_amount: 0, created_at: "2026-07-03T11:00:00Z", customers: { full_name: "Chief Femi Adebayo" }, vehicles: { make: "Lamborghini", model: "Urus Performante", year: 2024, plate_number: "RBC-911-UR", vin: "ZHWUU1ZD9KLA04921" } },
-    { id: "b-14", order_number: "SO-0010", status: "completed", total_amount: 0, created_at: "2026-07-02T14:00:00Z", customers: { full_name: "Sen. Charles Okonjo" }, vehicles: { make: "Rolls-Royce", model: "Cullinan Black Badge", year: 2023, plate_number: "ABJ-001-RR", vin: "SCA664D05JU194021" } },
-    { id: "b-15", order_number: "SO-0009", status: "completed", total_amount: 0, created_at: "2026-07-01T15:00:00Z", customers: { full_name: "Dr. Ibrahim Bello" }, vehicles: { make: "Ferrari", model: "F8 Tributo", year: 2023, plate_number: "KJA-888-FE", vin: "ZFF83CBA000259102" } },
-    { id: "b-16", order_number: "SO-0008", status: "completed", total_amount: 0, created_at: "2026-06-28T09:00:00Z", customers: { full_name: "Engr. Nnamdi Eze" }, vehicles: { make: "Porsche", model: "911 GT3 RS", year: 2024, plate_number: "LAG-911-GT", vin: "WP0AF2A97RS204910" } },
-    { id: "b-17", order_number: "SO-0007", status: "completed", total_amount: 0, created_at: "2026-06-25T10:00:00Z", customers: { full_name: "Hajiya Aisha Mohammed" }, vehicles: { make: "Mercedes-AMG", model: "G63 4x4²", year: 2024, plate_number: "ABJ-463-GG", vin: "W4N4632701X948102" } },
-    { id: "b-18", order_number: "SO-0006", status: "completed", total_amount: 0, created_at: "2026-06-22T11:30:00Z", customers: { full_name: "Mr. Tunde Bakare" }, vehicles: { make: "Range Rover", model: "Autobiography LWB", year: 2024, plate_number: "ABJ-777-RR", vin: "SALWR2RV9GA948102" } },
-    { id: "b-19", order_number: "SO-0005", status: "completed", total_amount: 0, created_at: "2026-06-20T12:00:00Z", customers: { full_name: "Barr. Musa Garba" }, vehicles: { make: "BMW", model: "M5 CS Satin", year: 2023, plate_number: "ABJ-505-CS", vin: "WBS81CH080CJ94019" } },
-    { id: "b-20", order_number: "SO-0004", status: "completed", total_amount: 0, created_at: "2026-06-18T13:00:00Z", customers: { full_name: "Capt. Emeka Obi" }, vehicles: { make: "Audi", model: "RS Q8 Ceramic PPF", year: 2023, plate_number: "BWR-404-RS", vin: "WAUZZZF27MD940192" } },
-    { id: "b-21", order_number: "SO-0003", status: "completed", total_amount: 0, created_at: "2026-06-15T14:00:00Z", customers: { full_name: "Mrs. Halima Abubakar" }, vehicles: { make: "Bentley", model: "Continental GT", year: 2022, plate_number: "KAD-101-CG", vin: "SCBCB6ZA0DC094819" } },
-    { id: "b-22", order_number: "SO-0002", status: "completed", total_amount: 0, created_at: "2026-06-12T15:00:00Z", customers: { full_name: "Alhaji Umar Farouk" }, vehicles: { make: "Cadillac", model: "Escalade V-Series", year: 2023, plate_number: "ABJ-600-ES", vin: "1GYS4KLJ0PR940192" } },
-    { id: "b-23", order_number: "SO-0001", status: "completed", total_amount: 0, created_at: "2026-06-10T16:00:00Z", customers: { full_name: "Alhaji Danladi Usman" }, vehicles: { make: "Mercedes-Maybach", model: "S680", year: 2024, plate_number: "ABJ-680-MA", vin: "W1K2231801A948301" } },
-  ];
+  const mappedInvoices = invoicesDataRaw.map((inv: any) => ({
+    id: inv.id,
+    order_number: inv.invoice_number,
+    status: inv.status === 'paid' ? 'completed' : 'in_progress',
+    total_amount: Number(inv.amount_paid) > 0 ? Number(inv.amount_paid) : Number(inv.total_amount || 0),
+    created_at: inv.created_at || inv.issued_date,
+    customers: inv.customers,
+    vehicles: null
+  }));
 
-  const DEFAULT_BASELINE_EXPENSES = [
-    { id: "e-1", expense_date: "2026-07-22", amount: 4850000 },
-    { id: "e-2", expense_date: "2026-07-18", amount: 3200000 },
-    { id: "e-3", expense_date: "2026-07-12", amount: 2150000 },
-    { id: "e-4", expense_date: "2026-07-05", amount: 1537244 },
-  ];
-
-  const rawOrdersToUse = ordersDataRaw.length > 0 ? ordersDataRaw : DEFAULT_BASELINE_ORDERS;
-  const rawExpensesToUse = expensesRaw.length > 0 ? expensesRaw : DEFAULT_BASELINE_EXPENSES;
-
+  const rawOrdersToUse = ordersDataRaw.length > 0 ? ordersDataRaw : mappedInvoices;
   const ordersData = rawOrdersToUse.filter((o: any) => filterByDate(o.created_at || o.intake_date));
-  const expensesData = rawExpensesToUse.filter((e: any) => filterByDate(e.expense_date || e.created_at));
+  const expensesData = expensesRaw.filter((e: any) => filterByDate(e.expense_date || e.created_at));
   const customersData = customersDataRaw.filter((c: any) => filterByDate(c.created_at));
 
   // Financials by date (Revenue & Expenses)
   const financialsByDate: Record<string, { revenue: number, expenses: number }> = {};
   
   ordersData.forEach((o: any) => {
-    if (o.status !== "cancelled") {
-      const dStr = o.created_at || o.intake_date || new Date().toISOString();
-      const d = new Date(dStr);
-      if (!isNaN(d.getTime())) {
-        const dateKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-        if (!financialsByDate[dateKey]) financialsByDate[dateKey] = { revenue: 0, expenses: 0 };
-        financialsByDate[dateKey].revenue += (o.total_amount ?? 0);
+    if (o.status === "completed" || o.status === "delivered") {
+      const dStr = (o.created_at || o.intake_date || new Date().toISOString()).split("T")[0];
+      if (dStr) {
+        if (!financialsByDate[dStr]) financialsByDate[dStr] = { revenue: 0, expenses: 0 };
+        financialsByDate[dStr].revenue += (Number(o.total_amount) || 0);
       }
     }
   });
 
   expensesData.forEach((e: any) => {
-    const dStr = e.expense_date || e.created_at || new Date().toISOString();
-    const d = new Date(dStr);
-    if (!isNaN(d.getTime())) {
-      const dateKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-      if (!financialsByDate[dateKey]) financialsByDate[dateKey] = { revenue: 0, expenses: 0 };
-      financialsByDate[dateKey].expenses += (e.amount ?? 0);
+    const dStr = (e.expense_date || e.created_at || new Date().toISOString()).split("T")[0];
+    if (dStr) {
+      if (!financialsByDate[dStr]) financialsByDate[dStr] = { revenue: 0, expenses: 0 };
+      financialsByDate[dStr].expenses += (Number(e.amount) || 0);
     }
   });
   
@@ -162,17 +143,15 @@ export default function Reports() {
   // Stock value by brand
   const brandStock: Record<string, number> = {};
   inventoryData.forEach((p: any) => {
-    brandStock[p.brand] = (brandStock[p.brand] ?? 0) + (p.stock_quantity ?? 0) * (p.unit_cost ?? 0);
+    brandStock[p.brand] = (brandStock[p.brand] ?? 0) + (Number(p.stock_quantity) || 0) * (Number(p.unit_cost) || 0);
   });
   const brandData = Object.entries(brandStock).map(([brand, value]) => ({ brand, value }));
 
   const customersPerDate: Record<string, number> = {};
   customersData.forEach((c: any) => {
-    const dStr = c.created_at || new Date().toISOString();
-    const d = new Date(dStr);
-    if (!isNaN(d.getTime())) {
-      const dateKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-      customersPerDate[dateKey] = (customersPerDate[dateKey] ?? 0) + 1;
+    const dStr = (c.created_at || new Date().toISOString()).split("T")[0];
+    if (dStr) {
+      customersPerDate[dStr] = (customersPerDate[dStr] ?? 0) + 1;
     }
   });
   const customerChartData = Object.entries(customersPerDate)
@@ -183,12 +162,12 @@ export default function Reports() {
       return { date: dateName, count };
     });
 
-  const validOrders = ordersData.filter((o: any) => o.status !== "cancelled");
-  const totalRevenue = validOrders.reduce((s: any, o: any) => s + (o.total_amount ?? 0), 0);
-  const totalExpenses = expensesData.reduce((s: any, e: any) => s + (e.amount ?? 0), 0);
+  const validOrders = ordersData.filter((o: any) => o.status === "completed" || o.status === "delivered");
+  const totalRevenue = validOrders.reduce((s: number, o: any) => s + (Number(o.total_amount) || 0), 0);
+  const totalExpenses = expensesData.reduce((s: number, e: any) => s + (Number(e.amount) || 0), 0);
   const netProfit = totalRevenue - totalExpenses;
   const totalOrders = ordersData.length;
-  const avgOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
+  const avgOrderValue = validOrders.length > 0 ? totalRevenue / validOrders.length : (totalOrders > 0 ? totalRevenue / totalOrders : 0);
 
   const handlePrint = () => {
     window.print();
@@ -306,12 +285,12 @@ export default function Reports() {
           {/* Summary */}
           <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
             {[
-              { label: "Total Revenue", value: formatCurrency(totalRevenue), color: "text-emerald-500", explain: "Sum of all service orders marked 'completed' or 'delivered' within the selected date range." },
-              { label: "Total Expenses", value: formatCurrency(totalExpenses), color: "text-red-500", explain: "Sum of all logged business expenses within the selected date range." },
-              { label: "Net Profit", value: formatCurrency(netProfit), color: "text-emerald-600", explain: "Calculated by subtracting Total Expenses from Total Revenue." },
-              { label: "Total Orders", value: totalOrders, color: "text-blue-500", explain: "Total number of service orders created within the selected date range, regardless of status." },
-              { label: "Avg Order Value", value: formatCurrency(avgOrderValue), color: "text-violet-500", explain: "Average revenue generated per service order (Total Revenue divided by Total Orders)." },
-              { label: "New Customers", value: customersData.length, color: "text-amber-500", explain: "Total number of new customers registered in the system during the selected date range." },
+              { label: "Total Revenue", value: formatCurrency(totalRevenue), sub: "Completed & delivered jobs", color: "text-emerald-500", explain: "Sum of revenue generated from all service orders with 'completed' or 'delivered' status." },
+              { label: "Total Expenses", value: formatCurrency(totalExpenses), sub: "Logged business expenses", color: "text-red-500", explain: "Sum of all logged business expenses within the selected date range." },
+              { label: "Net Profit", value: formatCurrency(netProfit), sub: "Revenue minus expenses", color: "text-emerald-600", explain: "Calculated by subtracting Total Expenses from Total Revenue." },
+              { label: "Total Orders", value: totalOrders, sub: "All created orders", color: "text-blue-500", explain: "Total number of service orders created within the selected date range, regardless of status." },
+              { label: "Avg Order Value", value: formatCurrency(avgOrderValue), sub: "Per completed order", color: "text-violet-500", explain: "Average revenue generated per completed/delivered service order." },
+              { label: "New Customers", value: customersData.length, sub: "Registered in period", color: "text-amber-500", explain: "Total number of new customers registered in the system during the selected date range." },
             ].map((s: any) => (
               <Card 
                 key={s.label} 
@@ -326,6 +305,7 @@ export default function Reports() {
                       {hoveredCard === s.label && !exportMode && <span className="text-[10px] text-muted-foreground uppercase tracking-wider shrink-0 ml-2">(Info)</span>}
                     </div>
                     <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
+                    {s.sub && <p className="text-xs text-muted-foreground mt-1">{s.sub}</p>}
                   </div>
                   {hoveredCard === s.label && !exportMode && (
                     <p className="text-xs text-muted-foreground mt-3 pt-3 border-t border-border/50 animate-in fade-in duration-300">
