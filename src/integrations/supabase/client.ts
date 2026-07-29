@@ -11,10 +11,10 @@ const isConfigured =
   !SUPABASE_ANON_KEY.includes("your-anon-key") &&
   !SUPABASE_ANON_KEY.includes("placeholder");
 
-const url = isConfigured ? SUPABASE_URL : "https://placeholder.supabase.co";
+const url = isConfigured ? SUPABASE_URL : "https://ntehtkfwvzvddrjitkjw.supabase.co";
 const key = isConfigured
   ? SUPABASE_ANON_KEY
-  : "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.placeholder";
+  : "sb_publishable_Xl5YY5qslf-iWaBG9--sOg_vta1xdjL";
 
 export const supabase = createClient<Database>(url, key, {
   auth: {
