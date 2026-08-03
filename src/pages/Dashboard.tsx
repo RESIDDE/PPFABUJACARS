@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
   TrendingUp, Users, Car, ClipboardList, Package,
-  FileText, AlertTriangle, CheckCircle2, Clock, Truck
+  FileText, AlertTriangle, CheckCircle2, Clock, Truck, Calendar
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -119,6 +119,30 @@ const COLORS = ["#3b82f6", "#8b5cf6", "#22c55e", "#f59e0b", "#ef4444"];
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  const [currentDateTime, setCurrentDateTime] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentDateTime(new Date());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const formattedDate = currentDateTime.toLocaleDateString("en-US", {
+    weekday: "long",
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    timeZone: "Africa/Lagos",
+  });
+
+  const formattedTime = currentDateTime.toLocaleTimeString("en-US", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: true,
+    timeZone: "Africa/Lagos",
+  });
 
   const { data: ordersData } = useQuery({
     queryKey: ["dashboard-orders"],
@@ -268,7 +292,16 @@ export default function Dashboard() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
+        <div className="flex items-center gap-3 flex-wrap">
+          <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
+          <Badge variant="outline" className="flex items-center gap-2 px-3 py-1 bg-card/60 backdrop-blur-sm border-border/80 text-foreground text-xs shadow-sm font-medium">
+            <Calendar className="w-3.5 h-3.5 text-primary" />
+            <span>{formattedDate}</span>
+            <span className="text-muted-foreground/40">|</span>
+            <Clock className="w-3.5 h-3.5 text-primary animate-pulse" />
+            <span className="font-semibold text-primary">{formattedTime} (WAT)</span>
+          </Badge>
+        </div>
         <p className="text-muted-foreground text-sm mt-1">PPF Abuja Cars — Service Overview</p>
       </div>
 
