@@ -46,14 +46,13 @@ export default function Invoices() {
   const navigate = useNavigate();
   const qc = useQueryClient();
 
-  const { data: invoices = [], isLoading } = useQuery({
-    queryKey: ["invoices", search, statusFilter, dateFilter, filterStartDate, filterEndDate],
+  const { data: allInvoices = [], isLoading } = useQuery({
+    queryKey: ["invoices", statusFilter, dateFilter, filterStartDate, filterEndDate],
     queryFn: async (): Promise<any> => {
       let q = supabase.from("invoices")
         .select("*, customers(full_name, phone), service_orders(order_number, total_amount, service_order_vehicles(vehicles(make, model)))")
         .order("created_at", { ascending: false });
       if (statusFilter !== "all") q = q.eq("status", statusFilter as InvoiceStatus);
-      if (search) q = q.ilike("invoice_number", `%${search}%`);
       if (filterStartDate) {
         q = q.gte("created_at", filterStartDate);
       }
@@ -71,6 +70,25 @@ export default function Invoices() {
       const { data } = await q;
       return data ?? [];
     },
+  });
+
+  const invoices = allInvoices.filter((inv: any) => {
+    if (!search) return true;
+    const term = search.toLowerCase();
+    
+    if (inv.invoice_number?.toLowerCase().includes(term)) return true;
+    
+    const customer = inv.customers as { full_name: string } | null;
+    if (customer?.full_name?.toLowerCase().includes(term)) return true;
+    
+    const serviceOrder = inv.service_orders as any;
+    if (serviceOrder?.order_number?.toLowerCase().includes(term)) return true;
+    
+    const vehiclesList = serviceOrder?.service_order_vehicles?.map((sov: any) => sov.vehicles).filter(Boolean) || [];
+    const vehicleName = vehiclesList.length > 0 ? `${vehiclesList[0].make} ${vehiclesList[0].model}`.toLowerCase() : "";
+    if (vehicleName.includes(term)) return true;
+    
+    return false;
   });
 
   const { register, control, handleSubmit, reset, setValue, formState: { errors } } = useForm<PaymentForm>({
@@ -149,7 +167,7 @@ export default function Invoices() {
       <div className="flex flex-wrap gap-3">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Search invoice #..." className="pl-9 w-56" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} />
+          <Input placeholder="Search invoice, customer, vehicle..." className="pl-9 w-[280px]" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} />
         </div>
         <div className="flex gap-2 flex-wrap items-center">
           <div className="flex items-center gap-1">
