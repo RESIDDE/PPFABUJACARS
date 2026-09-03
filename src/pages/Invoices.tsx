@@ -88,6 +88,12 @@ export default function Invoices() {
     const vehicleName = vehiclesList.length > 0 ? `${vehiclesList[0].make} ${vehiclesList[0].model}`.toLowerCase() : "";
     if (vehicleName.includes(term)) return true;
     
+    const amount = inv.total_amount ?? serviceOrder?.total_amount ?? 0;
+    if (amount.toString().includes(term)) return true;
+
+    if (inv.created_at && formatDateTime(inv.created_at).toLowerCase().includes(term)) return true;
+    if (inv.due_date && formatDate(inv.due_date).toLowerCase().includes(term)) return true;
+    
     return false;
   });
 
@@ -167,7 +173,7 @@ export default function Invoices() {
       <div className="flex flex-wrap gap-3">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Search invoice, customer, vehicle..." className="pl-9 w-[280px]" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} />
+          <Input placeholder="Search invoice, customer, amount, date..." className="pl-9 w-[280px]" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} />
         </div>
         <div className="flex gap-2 flex-wrap items-center">
           <div className="flex items-center gap-1">

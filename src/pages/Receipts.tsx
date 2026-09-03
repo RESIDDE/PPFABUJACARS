@@ -21,15 +21,14 @@ export default function Receipts() {
   const [page, setPage] = useState(1);
   const [previewInvoiceId, setPreviewInvoiceId] = useState<string | null>(null);
 
-  const { data: receipts = [], isLoading } = useQuery({
-    queryKey: ["receipts", search, dateFilter, filterStartDate, filterEndDate],
+  const { data: allReceipts = [], isLoading } = useQuery({
+    queryKey: ["receipts", dateFilter, filterStartDate, filterEndDate],
     queryFn: async (): Promise<any> => {
       let q = supabase.from("invoices")
         .select("*, customers(full_name, phone), service_orders(order_number, total_amount, service_order_vehicles(vehicles(make, model)))")
         .eq("status", "paid")
         .order("payment_date", { ascending: false }); // Sort by payment date
 
-      if (search) q = q.ilike("invoice_number", `%${search}%`);
       if (filterStartDate) {
         q = q.gte("payment_date", filterStartDate);
       }
@@ -49,6 +48,31 @@ export default function Receipts() {
     },
   });
 
+  const receipts = allReceipts.filter((receipt: any) => {
+    if (!search) return true;
+    const term = search.toLowerCase();
+
+    if (receipt.invoice_number?.toLowerCase().includes(term)) return true;
+
+    const customer = receipt.customers as { full_name: string } | null;
+    if (customer?.full_name?.toLowerCase().includes(term)) return true;
+
+    const serviceOrder = receipt.service_orders as any;
+    if (serviceOrder?.order_number?.toLowerCase().includes(term)) return true;
+
+    const vehiclesList = serviceOrder?.service_order_vehicles?.map((sov: any) => sov.vehicles).filter(Boolean) || [];
+    const vehicleName = vehiclesList.length > 0 ? `${vehiclesList[0].make} ${vehiclesList[0].model}`.toLowerCase() : "";
+    if (vehicleName.includes(term)) return true;
+
+    if (receipt.amount_paid?.toString().includes(term)) return true;
+
+    if (receipt.updated_at && formatDateTime(receipt.updated_at).toLowerCase().includes(term)) return true;
+    if (receipt.payment_date && formatDate(receipt.payment_date).toLowerCase().includes(term)) return true;
+    if (receipt.payment_method?.toLowerCase().includes(term)) return true;
+
+    return false;
+  });
+
   return (
     <div className="space-y-6">
       <div>
@@ -62,8 +86,8 @@ export default function Receipts() {
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input 
-            placeholder="Search receipt #..." 
-            className="pl-9 w-56" 
+            placeholder="Search receipt, customer, amount, date..." 
+            className="pl-9 w-[280px]" 
             value={search} 
             onChange={(e) => { setSearch(e.target.value); setPage(1); }} 
           />

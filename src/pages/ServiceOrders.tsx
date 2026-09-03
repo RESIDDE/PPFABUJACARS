@@ -16,7 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { formatDate, formatCurrency, getStatusLabel, generateOrderNumber, confirmDelete } from "@/lib/utils";
+import { formatDate, formatDateTime, formatCurrency, getStatusLabel, generateOrderNumber, confirmDelete } from "@/lib/utils";
 import type { ServiceOrderStatus } from "@/integrations/supabase/types";
 import CustomerHistoryDialog from "@/components/CustomerHistoryDialog";
 import { Pagination } from "@/components/ui/pagination";
@@ -98,10 +98,13 @@ export default function ServiceOrders() {
       return (
         o.order_number?.toLowerCase().includes(s) ||
         customer?.full_name?.toLowerCase().includes(s) ||
-        vehicleMatch
+        vehicleMatch ||
+        (o.total_amount?.toString() || "0").includes(s) ||
+        (o.intake_date && formatDate(o.intake_date).toLowerCase().includes(s)) ||
+        (o.created_at && formatDateTime(o.created_at).toLowerCase().includes(s))
       );
     });
-  }, [ordersData, search, timeFilter]);
+  }, [ordersData, search, timeFilter, filterStartDate, filterEndDate]);
 
   const { data: customers = [] } = useQuery({
     queryKey: ["customers-list"],
@@ -209,7 +212,7 @@ export default function ServiceOrders() {
       <div className="flex flex-wrap gap-3">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Search order, customer, VIN, plate..." className="pl-9 w-64" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} />
+          <Input placeholder="Search order, customer, amount, date..." className="pl-9 w-[280px]" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} />
         </div>
         <div className="flex items-center gap-1">
           <Input type="date" value={filterStartDate} onChange={(e) => { setFilterStartDate(e.target.value); setPage(1); }} className="w-[130px]" title="Start Date" />
